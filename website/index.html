@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moorkyz Recovery | Repository Medikit</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Moorkyz Recovery home"><span class="brand-mark">+</span><span>moorkyz<span class="brand-sub">REPO RECOVERY</span></span></a>
+    <div class="workspace-label">LOCAL WORKSPACE</div>
+    <a class="nav-item active" href="#portfolio"><span aria-hidden="true">&#9638;</span> Repository overview</a>
+    <a class="nav-item" href="#medikit"><span aria-hidden="true">+</span> Recovery medikit</a>
+    <div class="sidebar-bottom"><span class="live-dot"></span> Local only<div>No automatic repairs.<br>No data leaves this machine.</div></div>
+  </aside>
+  <main>
+    <header class="topbar"><span>WORKSPACE / RECOVERY CONTROL ROOM</span><span class="local-badge">127.0.0.1 <span class="live-dot"></span></span></header>
+    <section class="page-heading">
+      <div><p class="eyebrow">PRESERVE. UNDERSTAND. RECOVER.</p><h1>Your repositories.<br>A clearer way forward.</h1><p class="muted">A recovery workbench, not a reset button. Turn unknowns into evidence, one gate at a time.</p></div>
+      <div class="heading-label"><span class="cross" aria-hidden="true">+</span><span>Repository<br><strong>medikit</strong></span></div>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite">Connecting to the local workbench...</div>
+    <section class="metrics" aria-label="Portfolio summary">
+      <article><span>Directory candidates</span><strong id="total">--</strong><small>Including source-only and empty folders</small></article>
+      <article><span>Inspected</span><strong id="inspected">--</strong><small>Measured local condition</small></article>
+      <article><span>Preservation verified</span><strong id="preserved">--</strong><small>Independent backup + working copy</small></article>
+      <article class="metric-accent"><span>Recovery validated</span><strong id="recovered">--</strong><small>Against a known file baseline</small></article>
+    </section>
+    <section id="portfolio" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">01 / PORTFOLIO</p><h2>Repository triage</h2></div><button id="rescan" class="secondary">Rescan directory</button></div>
+      <div class="directory-line"><span class="live-dot"></span><code id="root">Loading directory...</code><span id="scan-time"></span></div>
+      <div class="toolbar"><label class="search-label"><span>Find a repository</span><input id="search" type="search" placeholder="Search name or path"></label><label>State<select id="filter"><option value="all">All states</option><option value="pending">Awaiting inspection</option><option value="clean-checkout">Clean checkout</option><option value="uncommitted-work">Uncommitted work</option><option value="source-only">Source only / no Git</option><option value="unborn-or-damaged">Unborn / damaged Git</option><option value="inspection-errors">Inspection errors</option><option value="recovered">Recovery validated</option></select></label><label>Sort<select id="sort"><option value="name">Name</option><option value="condition">Lowest condition first</option><option value="confidence">Lowest evidence coverage first</option></select></label></div>
+      <div class="table-wrap"><table><thead><tr><th scope="col">Repository / state</th><th scope="col">Condition</th><th scope="col">Potential quality</th><th scope="col">Recovery</th><th scope="col">Confidence</th><th scope="col"><span class="sr-only">Open medikit</span></th></tr></thead><tbody id="repositories"></tbody></table></div>
+      <p id="empty" class="empty" hidden>No directories match this view.</p>
+      <div class="table-footer"><span><span class="legend-dot estimate"></span> Estimate &nbsp; <span class="legend-dot final"></span> Measured final &nbsp; <span class="legend-dot locked"></span> Gated</span><span>Scores / 100 &middot; rubric-based, never a loss percentage</span></div>
+    </section>
+    <section id="medikit" class="panel medikit">
+      <div class="panel-heading"><div><p class="eyebrow">02 / MEDIKIT</p><h2 id="selected-name">Choose a repository</h2><p class="muted" id="selected-path">Open a medikit from the table to begin.</p></div><button id="evidence" class="secondary" disabled>View evidence</button></div>
+      <div class="kit-grid">
+        <div class="kit-steps" id="steps"></div>
+        <div class="kit-detail">
+          <p class="eyebrow">EVIDENCE BEFORE SCORES</p><h3 id="stage-title">No repository selected</h3><p id="stage-description" class="muted">Inspection never changes branches or runs product code. Later stages require your separate verified copies.</p>
+          <form id="action-form">
+            <div id="copy-fields" hidden>
+              <label>Untouched preservation backup<input name="backup" id="backup" placeholder="C:\Recovery\backup\project" autocomplete="off"></label>
+              <label>Independent disposable working copy<input name="workingCopy" id="working-copy" placeholder="C:\Recovery\working\project" autocomplete="off"></label>
+              <p class="warning">This verifies existing copies; it does not create a backup. All files, including ignored files and .git, are hashed. Large repositories can take time. Links/worktrees need separate acquisition.</p>
+            </div>
+            <div id="quality-fields" hidden>
+              <label>Validation profile<select id="profile"><option value="node">Node: declared test / lint / build / typecheck</option><option value="documentation">Documentation only: local Markdown file links</option></select></label>
+              <label class="checkbox"><input type="checkbox" id="approve"> I authorize running the declared package scripts on the verified disposable working copy. These scripts execute repository code and may write files, access the network or invoke external tools.</label>
+              <p class="warning">No automatic dependency installs. Missing tests block final product-quality scoring. Documentation-only checks cannot stand in for product tests.</p>
+            </div>
+            <button type="submit" class="primary" id="run-action" disabled>Choose a repository</button>
+          </form>
+          <p id="job-status" role="status" aria-live="polite" class="job-status">No job running.</p>
+          <div class="kit-note"><strong>What “final” means</strong><p>A measured score for the stated rubric and observation time. Recovery compares known baseline files; confidence measures completed evidence gates, not the probability of finding unknown lost work.</p></div>
+        </div>
+      </div>
+    </section>
+    <footer>MOORKYZ RECOVERY <span>Private local evidence &middot; No merge, reset, push or deployment actions</span></footer>
+  </main>
+  <dialog id="evidence-dialog"><div class="panel-heading"><h2>Recorded evidence</h2><button id="close-dialog" class="secondary">Close</button></div><p class="warning">Private local paths and command output. Review before sharing.</p><pre id="evidence-content"></pre></dialog>
+</body>
+</html>

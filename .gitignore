@@ -1,0 +1,12 @@
+# Private historical inputs require a publication review.
+docs/sources/2026-10-30/
+.recovery/
+.logs/
+.archive/
+node_modules/
+coverage/
+.env
+.env.*
+*.bundle
+*.zip
+*.log
