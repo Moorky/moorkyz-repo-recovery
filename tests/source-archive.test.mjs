@@ -12,6 +12,7 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const name of ['docs', path.join('docs', 'sources'), path.join('website', 'fonts'), 'src', '.git', '.audits', 'node_modules']) fs.mkdirSync(path.join(root, name), { recursive: true });
   fs.writeFileSync(path.join(root, 'README.md'), '# Public guide');
+  fs.writeFileSync(path.join(root, 'PUBLICATION_STATUS.md'), '# Reviewed publication summary');
   fs.writeFileSync(path.join(root, 'src', 'tool.mjs'), 'export const fixture = true;');
   fs.writeFileSync(path.join(root, 'src', '.env.json'), '{"private":true}');
   fs.writeFileSync(path.join(root, '.env'), 'private');
@@ -26,9 +27,10 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   const archive = sourceArchive(root);
   assert.equal(archive.readUInt32LE(0), 0x04034b50);
   assert.equal(archive.readUInt32LE(archive.length - 22), 0x06054b50);
-  assert.equal(archive.readUInt16LE(archive.length - 12), 5);
+  assert.equal(archive.readUInt16LE(archive.length - 12), 6);
   assert.ok(archive.includes(Buffer.from('moorkyz-repo-recovery/README.md')));
   assert.ok(archive.includes(Buffer.from('# Public guide')));
+  assert.ok(archive.includes(Buffer.from('PUBLICATION_STATUS.md')));
   assert.ok(archive.includes(Buffer.from('website/fonts/DMMono-Regular.ttf')));
   assert.ok(archive.includes(Buffer.from('Font license')));
   assert.ok(archive.includes(Buffer.from('website/favicon.svg')));

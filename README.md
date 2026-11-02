@@ -6,6 +6,9 @@ without a Git repository, external network access or package installation.
 
 ## Start here
 
+See [verified publication status](PUBLICATION_STATUS.md) for the GitHub branch
+links, audited source commits and explicit remaining limits across the portfolio.
+
 New to recovery? Open the [complete step-by-step operator manual](docs/USER_GUIDE.md).
 The dashboard links to its readable local edition at `/manual`, with a table of
 contents, scenario troubleshooting, metric definitions and a final checklist.
