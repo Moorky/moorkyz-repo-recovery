@@ -11,5 +11,7 @@ Use a [case record](docs/templates/CASE.md) for each repository investigation.
    pending human review.
 
 Keep original inputs immutable. Do not upload private reports or raw evidence.
-Do not initialize this project's Git repository yet; the owner will supply it.
-Publication and future commit workflow are separate from local validation.
+Local Git history already exists; never replace its metadata. Commits,
+publication and real-project recovery approvals are separate from local
+validation. See the [guided workflow](docs/GUIDED_RECOVERY.md) for copy and
+historical-recovery boundaries.

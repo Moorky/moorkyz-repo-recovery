@@ -1,5 +1,10 @@
 # Portfolio triage
 
+For the owner's newer dated assessment, see
+[Project integrity and recovery assessment](../PROJECT_RECOVERY_ASSESSMENT.md).
+For a reproducible current local snapshot, use [the assess command](TOOLING.md).
+The table below remains historical input, not a current tool-generated diagnosis.
+
 All entries below are **reported historical observations from 2026-10-30**, not
 a fresh local/remote forensic assessment. The later ZIP assessment controls the
 initial queue where it supersedes the earlier remote-only report. See

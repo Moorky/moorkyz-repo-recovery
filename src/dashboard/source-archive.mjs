@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const folders = new Set(['src', 'scripts', 'tests', 'website', 'docs']);
-const rootFiles = new Set(['README.md', 'AGENTS.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE',
+const rootFiles = new Set(['README.md', 'CHANGELOG.md', 'AGENTS.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE',
   'package.json', 'DASHBOARD.cmd', 'RUN.cmd', '.editorconfig', '.gitattributes', '.gitignore', '.node-version']);
 const textExtensions = new Set(['.md', '.mjs', '.js', '.css', '.html', '.json', '.ps1', '.cmd']);
 const assets = new Set([path.join('website', 'fonts', 'DMMono-Regular.ttf'), path.join('website', 'fonts', 'OFL.txt'),

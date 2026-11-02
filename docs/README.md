@@ -5,7 +5,12 @@ English historical originals remain intact for provenance, not as parallel manua
 
 | Read | Purpose |
 |---|---|
+| [Complete operator manual](USER_GUIDE.md) | First launch through verified handoff, worked command examples, failure recovery and metric meanings |
 | [Recovery handbook](RECOVERY_HANDBOOK.md) | Safe sequence, recovery classes and completion gates |
+| [Readiness and estimates](READINESS.md) | Working capabilities, unsupported recovery paths, safe usage and remaining effort |
+| [Guided recovery](GUIDED_RECOVERY.md) | End-to-end acquisition, Git/reflog recovery, remote imports, validation and handoff |
+| [Owner decisions](OWNER_DECISIONS.md) | Questions awaiting review before starting a real-project recovery case |
+| [Owner portfolio assessment](../PROJECT_RECOVERY_ASSESSMENT.md) | Dated local triage; not live evidence or proof of completeness |
 | [Portfolio](PORTFOLIO.md) | Historical priorities, special cases and next evidence needed |
 | [Source reconciliation](SOURCE_RECONCILIATION.md) | Duplicates, contradictions, uncertainty and source precedence |
 | [Tooling](TOOLING.md) | Executable commands, limitations and report shape |

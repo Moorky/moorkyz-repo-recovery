@@ -1,4 +1,10 @@
 export const catalog = [
+  { id: 'acquire-preview', name: 'Create verified copies', description: 'Preview and approve full independent backup and working-copy acquisition.', source: 'src/dashboard/acquisition.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
+  { id: 'history', name: 'Commit and reflog discovery', description: 'Find surviving refs, reflog entries and integrity-reported unreachable commits.', source: 'src/dashboard/history.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
+  { id: 'compare', name: 'Historical tree comparison', description: 'Compare a chosen commit with current working-copy bytes without filters.', source: 'src/dashboard/history.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
+  { id: 'restore-preview', name: 'Historical-file restoration', description: 'Preview and restore one exact regular-file blob into the independent copy.', source: 'src/dashboard/history.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
+  { id: 'rescue-preview', name: 'Preserve a lost commit', description: 'Create a new recovery branch without checkout or reset in the working copy.', source: 'src/dashboard/history.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
+  { id: 'remote-preview', name: 'Fresh remote comparison', description: 'Explicitly approved HTTPS/local refs and isolated working-copy import.', source: 'src/dashboard/remote.mjs', guide: 'docs/GUIDED_RECOVERY.md' },
   { id: 'inspect', name: 'Local examination', description: 'Read structure and Git state without repairs.', source: 'src/dashboard/engine.mjs', section: 'Ordered examination and fix procedures' },
   { id: 'preserve', name: 'Preservation verification', description: 'Verify independent backup and working-copy bytes.', source: 'src/dashboard/engine.mjs', section: 'Ordered examination and fix procedures' },
   { id: 'integrity', name: 'Object integrity', description: 'Non-writing Git fsck on a secured working copy.', source: 'src/dashboard/engine.mjs', section: 'Ordered examination and fix procedures' },

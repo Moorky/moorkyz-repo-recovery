@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import { containedBy, readGit } from '../recovery.mjs';
+import { collectRecoveryEvidence } from './report.mjs';
+import { targetFile, planHash } from './files.mjs';
+import { checkPlan, runChecks } from './checks.mjs';
 
 const markers = ['.git', 'package.json', 'pyproject.toml', 'Cargo.toml', 'PROJECT_MANIFEST.json'];
 const skip = new Set(['.git', 'node_modules', '.venv', '.next', 'data', 'dist', 'build', 'bin', 'obj']);
-const checks = ['test', 'lint', 'build', 'typecheck'];
+const checks = ['test', 'lint', 'build', 'typecheck', 'type-check'];
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const good = result => result.exitCode === 0 && result.error === null;
 
@@ -69,14 +71,27 @@ function fileHash(file) {
 }
 
 export function snapshot(folder) {
-  const files = {};
+  const physicalRoot = fs.realpathSync.native(folder);
+  const files = Object.create(null);
+  const links = Object.create(null);
   const directories = [];
   function walk(current) {
     for (const entry of entries(current).sort((a, b) => a.name.localeCompare(b.name))) {
       const target = path.join(current, entry.name);
       const relative = path.relative(folder, target);
-      if (entry.isSymbolicLink()) throw new Error(`Cannot certify a full copy containing a link/junction: ${relative}`);
-      if (entry.isDirectory()) {
+      if (entry.isSymbolicLink()) {
+        const link = fs.readlinkSync(target);
+        const resolved = path.resolve(path.dirname(target), link);
+        if (path.isAbsolute(link) || path.win32.isAbsolute(link) || !containedBy(resolved, folder)) {
+          throw new Error(`Cannot certify an absolute or escaping link/junction: ${relative}`);
+        }
+        let ancestor = resolved;
+        while (!fs.existsSync(ancestor) && ancestor !== folder) ancestor = path.dirname(ancestor);
+        if (!containedBy(fs.realpathSync.native(ancestor), physicalRoot)) {
+          throw new Error(`Cannot certify an indirectly escaping link/junction: ${relative}`);
+        }
+        links[relative] = { target: link };
+      } else if (entry.isDirectory()) {
         directories.push(relative);
         walk(target);
       } else if (entry.isFile()) {
@@ -87,7 +102,8 @@ export function snapshot(folder) {
     }
   }
   walk(folder);
-  return { files, directories: directories.sort(), fingerprint: digest(JSON.stringify({ files, directories: directories.sort() })) };
+  const content = { files, directories: directories.sort(), ...(Object.keys(links).length ? { links } : {}) };
+  return { ...content, fingerprint: digest(JSON.stringify(content)) };
 }
 
 function structure(folder) {
@@ -115,6 +131,8 @@ function structure(folder) {
     staticScore: rubric.reduce((sum, item) => sum + (item.pass ? item.weight : 0), 0),
     availableChecks,
     hasSource,
+    packageVersion: typeof manifest?.version === 'string' ? manifest.version : null,
+    packageManager: typeof manifest?.packageManager === 'string' ? manifest.packageManager : null,
     manifestHash: manifest ? fileHash(path.join(folder, 'package.json')) : null,
   };
 }
@@ -134,11 +152,12 @@ export function inspect(repository) {
   const gitPoints = !hasGit ? 0 : commands.filter(good).length / commands.length * 50;
   return {
     at: new Date().toISOString(), measured, hasGit, commands, state,
+    recoveryEvidence: hasGit ? collectRecoveryEvidence(repository) : null,
     conditionScore: Math.round(gitPoints + measured.staticScore / 2),
   };
 }
 
-function separateCopy(source, copy, forbiddenRoots) {
+export function separateCopy(source, copy, forbiddenRoots) {
   copy = fs.realpathSync(copy);
   if (!fs.statSync(copy).isDirectory()) throw new Error('Copy must be a directory.');
   if (containedBy(copy, source) || containedBy(source, copy)) throw new Error('Copy must not overlap the original.');
@@ -151,6 +170,28 @@ function separateCopy(source, copy, forbiddenRoots) {
   return copy;
 }
 
+export function assertLocalGit(folder, baseline = snapshot(folder)) {
+  for (const name of Object.keys(baseline.files)) {
+    const parts = name.split(path.sep).map(part => part.toLowerCase());
+    if (parts.at(-1) === '.git' || parts.includes('.git') && parts.slice(-3).join('/') === 'objects/info/alternates') {
+      throw new Error('External Git metadata / object alternates require separate manual acquisition.');
+    }
+    if (parts.includes('.git') && parts.at(-1) === 'commondir') {
+      const pointer = path.join(folder, name);
+      const common = path.resolve(path.dirname(pointer), fs.readFileSync(pointer, 'utf8').trim());
+      if (!containedBy(common, folder) || !containedBy(fs.realpathSync(common), fs.realpathSync(folder))) {
+        throw new Error('External Git common directory requires separate manual acquisition.');
+      }
+    }
+    if (parts.at(-1) !== 'config' || parts.at(-2) !== '.git') continue;
+    const root = path.dirname(path.dirname(path.join(folder, name)));
+    const result = readGit(root, ['rev-parse', '--show-toplevel']);
+    if (!good(result) || fs.realpathSync(result.stdout.trim()) !== fs.realpathSync(root)) {
+      throw new Error('Git working-tree configuration points outside its independent copy or is unreadable.');
+    }
+  }
+}
+
 export function preserve(source, backup, workingCopy, forbiddenRoots) {
   if (fs.existsSync(path.join(source, '.git')) && fs.statSync(path.join(source, '.git')).isFile()) {
     throw new Error('External Git metadata must be acquired separately. Linked-worktree preservation cannot be certified by this tool.');
@@ -159,11 +200,17 @@ export function preserve(source, backup, workingCopy, forbiddenRoots) {
   workingCopy = separateCopy(source, workingCopy, forbiddenRoots);
   if (containedBy(backup, workingCopy) || containedBy(workingCopy, backup)) throw new Error('Backup and working copy must be independent.');
   const original = snapshot(source);
+  assertLocalGit(source, original);
   if (!Object.keys(original.files).length) throw new Error('An empty directory has no recoverable file baseline.');
-  if (snapshot(backup).fingerprint !== original.fingerprint) throw new Error('Backup differs from original: preservation not verified.');
-  if (snapshot(workingCopy).fingerprint !== original.fingerprint) throw new Error('Working copy differs from original baseline.');
+  const backupSnapshot = snapshot(backup);
+  const workingSnapshot = snapshot(workingCopy);
+  if (backupSnapshot.fingerprint !== original.fingerprint) throw new Error('Backup differs from original: preservation not verified.');
+  if (workingSnapshot.fingerprint !== original.fingerprint) throw new Error('Working copy differs from original baseline.');
+  assertLocalGit(backup, backupSnapshot);
+  assertLocalGit(workingCopy, workingSnapshot);
   if (snapshot(source).fingerprint !== original.fingerprint) throw new Error('Original changed during verification. Retry after quiescing writers.');
-  return { at: new Date().toISOString(), backup, workingCopy, baseline: original };
+  return { at: new Date().toISOString(), backup, workingCopy, baseline: original,
+    scope: 'Source-root file bytes and contained relative-link metadata. Registered external worktree directories require separate preservation.' };
 }
 
 export function ensurePreserved(source, record) {
@@ -172,6 +219,9 @@ export function ensurePreserved(source, record) {
   }
   if (snapshot(source).fingerprint !== record.baseline.fingerprint) throw new Error('Original changed since preservation. Re-inspect and re-verify copies.');
   if (snapshot(record.backup).fingerprint !== record.baseline.fingerprint) throw new Error('Preservation backup changed. Re-verify an untouched backup.');
+  const working = snapshot(record.workingCopy);
+  assertLocalGit(record.workingCopy, working);
+  return working;
 }
 
 export function integrity(source, preservation) {
@@ -213,48 +263,48 @@ function localLinks(folder) {
     stdout: `${examined} Markdown files checked (archived sources excluded).`, stderr: failures.join('\n'), error: null };
 }
 
-function runPackageCheck(folder, check) {
-  // Check names are allowlisted; no user-provided shell fragments are interpolated.
-  const executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : 'npm';
-  const args = process.platform === 'win32' ? ['/d', '/s', '/c', `npm.cmd run ${check}`] : ['run', check];
-  const result = spawnSync(executable, args, {
-    cwd: folder, encoding: 'utf8', timeout: 120_000, maxBuffer: 8 * 1024 * 1024, windowsHide: true,
-    env: { ...process.env, CI: 'true', GIT_TERMINAL_PROMPT: '0' },
-  });
-  return { check, exitCode: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '',
-    error: result.error?.message ?? (result.signal ? `Terminated by ${result.signal}` : null) };
-}
-
-export function quality(source, preservation, profile, approved) {
-  ensurePreserved(source, preservation);
+export function qualityPreview(source, preservation, input) {
+  const working = ensurePreserved(source, preservation);
   const folder = preservation.workingCopy;
   const measured = structure(folder);
-  if (!['node', 'documentation'].includes(profile)) throw new Error('Select an explicit Node or documentation-only profile.');
-  if (profile === 'node' && approved !== true) throw new Error('Executing repository code requires explicit approval.');
+  const profile = input.profile;
+  if (!['node', 'documentation', 'custom'].includes(profile)) throw new Error('Select an explicit Node, reviewed-command or documentation-only profile.');
   if (profile === 'node' && !measured.availableChecks.includes('test')) {
     throw new Error('No package.json test script. Configure a real test command before a final quality score.');
   }
   if (profile === 'documentation' && (measured.hasSource || fs.existsSync(path.join(folder, 'package.json')))) {
     throw new Error('Documentation-only profile cannot bypass tests for a source/package project.');
   }
-  const before = snapshot(folder).fingerprint;
-  const results = profile === 'node' ? measured.availableChecks.map(check => runPackageCheck(folder, check)) : [localLinks(folder)];
-  ensurePreserved(source, preservation);
-  const after = snapshot(folder);
+  const plan = profile === 'documentation' ? { commands: [], timeoutSeconds: null } : checkPlan(folder, input, measured.availableChecks);
+  const preview = { profile, measured, fingerprint: working.fingerprint, ...plan };
+  return { at: new Date().toISOString(), ...preview, planHash: planHash(preview) };
+}
+
+export async function quality(source, preservation, profile, approved, options = {}) {
+  if (profile !== 'documentation' && approved !== true) throw new Error('Executing repository code requires explicit approval.');
+  const preview = qualityPreview(source, preservation, { ...options, profile });
+  if ((profile === 'custom' || options.planHash) && options.planHash !== preview.planHash) throw new Error('Approve the unchanged validation preview.');
+  const folder = preservation.workingCopy;
+  const measured = preview.measured;
+  const results = profile === 'documentation' ? [localLinks(folder)] : await runChecks(preview, options.signal);
+  const after = ensurePreserved(source, preservation);
   return {
-    at: new Date().toISOString(), profile, measured, results, before,
+    at: new Date().toISOString(), profile, measured, results, before: preview.fingerprint, planHash: preview.planHash,
     fingerprint: after.fingerprint,
     passed: results.every(good),
     score: Math.round(measured.staticScore * 0.3 + results.filter(good).length / results.length * 70),
-    scope: profile === 'node' ? `Declared npm scripts: ${measured.availableChecks.join(', ')}` : 'Documentation local-file links only',
+    scope: profile === 'documentation' ? 'Documentation local-file links only' : `Approved commands: ${preview.commands.map(command => command.name).join(', ')}`,
   };
 }
 
-export function validateRecovery(source, preservation, integrityRecord, qualityRecord) {
-  ensurePreserved(source, preservation);
+export function validateRecovery(source, preservation, integrityRecord, qualityRecord, targets = [], acceptance = '') {
+  const candidate = ensurePreserved(source, preservation);
   if (!integrityRecord.passed || !qualityRecord.passed) throw new Error('Integrity and quality checks must pass before recovery validation.');
-  const candidate = snapshot(preservation.workingCopy);
   if (candidate.fingerprint !== qualityRecord.fingerprint) throw new Error('Working copy changed after quality checks. Run quality checks again.');
+  for (const target of targets) {
+    const file = targetFile(preservation.workingCopy, target.file, { mustExist: true });
+    if (fileHash(file) !== target.afterHash) throw new Error(`Recovered target no longer matches approved bytes: ${target.file}`);
+  }
   const baselineFiles = Object.entries(preservation.baseline.files);
   const matched = baselineFiles.filter(([name, original]) =>
     candidate.files[name]?.sha256 === original.sha256 && candidate.files[name]?.bytes === original.bytes).length;
@@ -267,6 +317,8 @@ export function validateRecovery(source, preservation, integrityRecord, qualityR
     recoveryScore: Math.round(matched / baselineFiles.length * 100),
     confidenceScore: 100,
     fingerprint: candidate.fingerprint,
+    verifiedTargets: targets,
+    acceptance,
     finalIntegrity,
     scope: 'Verified baseline file preservation and completed local checks; not a probability of recovering unknown lost work.',
   };
@@ -275,7 +327,7 @@ export function validateRecovery(source, preservation, integrityRecord, qualityR
 export function scores(repository) {
   const { inspection, preservation, integrity: objects, quality: validation, recovery } = repository.records;
   return {
-    condition: inspection ? inspection.commands.some(command => !good(command)) ?
+    condition: inspection ? inspection.commands.some(command => !good(command)) || inspection.recoveryEvidence?.hasErrors ?
       { value: null, status: 'blocked', scope: 'Git query failures leave the condition unknown; see recorded evidence' } :
       { value: inspection.conditionScore, status: 'final', scope: 'Local condition rubric at inspection time' } :
       { value: repository.empty ? 0 : repository.hasGit ? 50 : 25, status: 'estimate', scope: 'Directory markers only; inspect to measure' },
@@ -290,7 +342,7 @@ export function scores(repository) {
   };
 }
 
-export function executeTask(repository, action, input, forbiddenRoots) {
+export function executeTask(repository, action, input, forbiddenRoots, signal) {
   const records = repository.records;
   if (action === 'inspect') return inspect(repository.path);
   if (!records.inspection) throw new Error('Run inspection first.');
@@ -298,8 +350,12 @@ export function executeTask(repository, action, input, forbiddenRoots) {
   if (!records.preservation) throw new Error('Verify preservation first.');
   if (action === 'integrity') return integrity(repository.path, records.preservation);
   if (!records.integrity?.passed) throw new Error('Run passing integrity diagnostics first.');
-  if (action === 'quality') return quality(repository.path, records.preservation, input.profile, input.approved);
+  if (action === 'quality-preview') return qualityPreview(repository.path, records.preservation, input);
+  if (action === 'quality') return quality(repository.path, records.preservation, input.profile, input.approved, { ...input, signal });
   if (!records.quality) throw new Error('Run quality checks first.');
-  if (action === 'recover') return validateRecovery(repository.path, records.preservation, records.integrity, records.quality);
+  if (action === 'recover') {
+    if (typeof input.acceptance !== 'string' || !input.acceptance.trim() || input.acceptance.length > 8000) throw new Error('Describe the reviewed recovery target, validation and remaining limitations before handoff.');
+    return validateRecovery(repository.path, records.preservation, records.integrity, records.quality, repository.recoveryTargets ?? [], input.acceptance.trim());
+  }
   throw new Error('Unknown medikit action.');
 }

@@ -49,7 +49,7 @@ test('discovery excludes ordinary directories and nested components', t => {
   }
 });
 
-test('exact score rubric and prerequisite gates, including a complete documentation case', t => {
+test('exact score rubric and prerequisite gates, including a complete documentation case', async t => {
   const f = fixture(t);
   const repo = discover(f.root).repositories[0];
   assert.throws(() => executeTask(repo, 'quality', {}, [f.root]), /inspection first/);
@@ -64,7 +64,7 @@ test('exact score rubric and prerequisite gates, including a complete documentat
   repo.records.integrity = integrity(f.source, repo.records.preservation);
   assert.equal(repo.records.integrity.hasGit, false);
   assert.equal(scores(repo).confidence.value, 60);
-  repo.records.quality = quality(f.source, repo.records.preservation, 'documentation', false);
+  repo.records.quality = await quality(f.source, repo.records.preservation, 'documentation', false);
   assert.equal(scores(repo).quality.status, 'final');
   assert.equal(scores(repo).quality.value, 84); // 45 * .3 + passing links * 70.
   repo.records.recovery = validateRecovery(f.source, repo.records.preservation, repo.records.integrity, repo.records.quality);
@@ -93,49 +93,62 @@ test('unknown condition is blocked when Git inspection fails', t => {
   assert.ok(repo.records.inspection.commands.some(result => result.exitCode !== 0));
 });
 
-test('changes to original, backup or validated candidate invalidate later gates', t => {
+test('changes to original, backup or validated candidate invalidate later gates', async t => {
   const f = fixture(t);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
   const objects = integrity(f.source, preserved);
-  const checked = quality(f.source, preserved, 'documentation', false);
+  const checked = await quality(f.source, preserved, 'documentation', false);
   fs.writeFileSync(path.join(f.working, 'new.txt'), 'changed after checks');
   assert.throws(() => validateRecovery(f.source, preserved, objects, checked), /changed after quality/);
   fs.writeFileSync(path.join(f.backup, 'new.txt'), 'changed backup');
-  assert.throws(() => quality(f.source, preserved, 'documentation', false), /backup changed/);
+  await assert.rejects(quality(f.source, preserved, 'documentation', false), /backup changed/);
   fs.writeFileSync(path.join(f.source, 'new.txt'), 'changed original');
   assert.throws(() => integrity(f.source, preserved), /Original changed/);
 });
 
-test('quality requires actual tests and explicit approval; scripts run only on the copy', t => {
+test('quality requires actual tests and explicit approval; scripts run only on the copy', async t => {
   const f = fixture(t, true);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
-  assert.throws(() => quality(f.source, preserved, 'node', false), /approval/);
-  assert.throws(() => quality(f.source, preserved, 'documentation', false), /cannot bypass/);
+  await assert.rejects(quality(f.source, preserved, 'node', false), /approval/);
+  await assert.rejects(quality(f.source, preserved, 'documentation', false), /cannot bypass/);
   const before = snapshot(f.source).fingerprint;
-  const checked = quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true);
   assert.equal(checked.passed, true, JSON.stringify(checked.results));
   assert.equal(checked.results.length, 2);
   assert.equal(snapshot(f.source).fingerprint, before);
   fs.writeFileSync(path.join(f.working, 'package.json'), JSON.stringify({ scripts: { lint: 'node -e "process.exit(0)"' } }));
-  assert.throws(() => quality(f.source, preserved, 'node', true), /No package.json test/);
+  await assert.rejects(quality(f.source, preserved, 'node', true), /No package.json test/);
 });
 
-test('failed checks produce measured lower quality and block recovery', t => {
+test('failed checks produce measured lower quality and block recovery', async t => {
   const f = fixture(t, true);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
   fs.writeFileSync(path.join(f.working, 'package.json'), JSON.stringify({ scripts: { test: 'node -e "process.exit(7)"' } }));
-  const checked = quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true);
   assert.equal(checked.passed, false);
   assert.equal(checked.results[0].exitCode, 7);
   assert.equal(checked.score, 21); // static 70 * .3, failed execution yields zero validation points.
   assert.throws(() => validateRecovery(f.source, preserved, integrity(f.source, preserved), checked), /must pass/);
 });
 
-test('recovery score measures baseline retention, not an invented loss percentage', t => {
+test('quality executes the declared type-check alias and records its failure', async t => {
+  const f = fixture(t, true);
+  const manifest = JSON.stringify({ scripts: {
+    test: 'node -e "process.exit(0)"',
+    'type-check': 'node -e "process.exit(9)"',
+  } });
+  for (const folder of [f.source, f.backup, f.working]) fs.writeFileSync(path.join(folder, 'package.json'), manifest);
+  const preserved = preserve(f.source, f.backup, f.working, [f.root]);
+  const checked = await quality(f.source, preserved, 'node', true);
+  assert.equal(checked.passed, false);
+  assert.deepEqual(checked.results.map(result => [result.check, result.exitCode]), [['test', 0], ['type-check', 9]]);
+});
+
+test('recovery score measures baseline retention, not an invented loss percentage', async t => {
   const f = fixture(t);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
   fs.writeFileSync(path.join(f.working, 'docs', 'guide.md'), '# Revised guide\n');
-  const checked = quality(f.source, preserved, 'documentation', false);
+  const checked = await quality(f.source, preserved, 'documentation', false);
   const recovered = validateRecovery(f.source, preserved, integrity(f.source, preserved), checked);
   assert.equal(recovered.recoveryScore, 67);
   assert.equal(recovered.confidenceScore, 100);
@@ -170,6 +183,7 @@ test('loopback API enforces session/origin and persists gated medikit evidence',
   f.resources.push(() => app.close());
   const api = await session(app);
   assert.equal((await fetch(`${app.origin}/api/state`)).status, 403);
+  assert.equal((await fetch(`${app.origin}/api/report.md`)).status, 403);
   assert.equal((await api('/api/state', undefined, { Origin: 'https://example.invalid' })).status, 403);
   const rejectedHost = await new Promise((resolve, reject) => {
     const request = http.get(app.origin, { headers: { Host: 'bad.invalid' } }, response => {
@@ -184,7 +198,7 @@ test('loopback API enforces session/origin and persists gated medikit evidence',
   assert.equal(moduleResponse.status, 200);
   assert.match(moduleResponse.headers.get('content-type'), /javascript/);
   assert.equal(moduleResponse.headers.get('set-cookie'), null);
-  for (const route of ['/workspace.mjs', '/workspace-model.mjs', '/diagnostics-model.mjs']) {
+  for (const route of ['/workspace.mjs', '/workspace-model.mjs', '/diagnostics-model.mjs', '/guidance.mjs', '/guidance-model.mjs']) {
     const response = await fetch(app.origin + route);
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /javascript/);
@@ -197,7 +211,7 @@ test('loopback API enforces session/origin and persists gated medikit evidence',
   assert.equal(font.status, 200);
   assert.equal(font.headers.get('content-type'), 'font/ttf');
   assert.equal(Buffer.from(await font.arrayBuffer()).readUInt32BE(0), 0x00010000);
-  for (const route of ['/docs', '/setup', '/guide/restore-file', '/procedure-source/restore-file']) {
+  for (const route of ['/docs', '/setup', '/manual', '/workflow', '/guide/restore-file', '/procedure-source/restore-file']) {
     assert.equal((await fetch(app.origin + route)).status, 200, route);
   }
   const archiveResponse = await fetch(app.origin + '/download/source.zip');
@@ -210,16 +224,28 @@ test('loopback API enforces session/origin and persists gated medikit evidence',
   const id = payload.repositories[0].id;
   for (const [action, input] of [
     ['inspect', {}], ['preserve', { backup: f.backup, workingCopy: f.working }],
-    ['integrity', {}], ['quality', { profile: 'documentation' }], ['recover', {}],
+    ['integrity', {}], ['quality', { profile: 'documentation' }], ['recover', { acceptance: 'Fixture documentation is readable and local links pass; no product functionality claimed.' }],
   ]) {
     assert.equal((await api('/api/task', { repositoryId: id, action, ...input })).status, 202);
     payload = await waitJob(api);
     assert.equal(payload.job.status, 'completed', payload.job.error);
   }
   assert.equal(payload.repositories[0].scores.recovery.value, 100);
+  const { token } = await (await fetch(`${app.origin}/api/session`)).json();
+  const exported = await fetch(`${app.origin}/api/report.md`, { headers: { 'X-Recovery-Token': token } });
+  assert.equal(exported.status, 200);
+  assert.match(exported.headers.get('content-type'), /text\/markdown/);
+  assert.match(exported.headers.get('content-disposition'), /attachment/);
+  const markdown = await exported.text();
+  assert.match(markdown, /# Local recovery evidence report/);
+  assert.match(markdown, /source-only/);
+  assert.match(markdown, /recovery: recorded at/);
   assert.equal((await api(`/api/evidence/${id}`)).payload.recovery.recoveryScore, 100);
   assert.equal(fs.readFileSync(path.join(data, 'recovery.sqlite')).subarray(0, 15).toString(), 'SQLite format 3');
   const procedure = payload.repositories[0].procedures[0];
+  assert.ok(procedure.durationMs >= 0);
+  assert.equal(payload.repositories[0].records.preservation.summary.files, 3);
+  assert.equal(payload.repositories[0].records.inspection.summary.missingIndexPaths, null);
   assert.equal((await api('/api/case', { repositoryId: id, type: 'procedure-rating', procedureId: procedure.id,
     helpingFactor: 61, rationale: 'Useful initial diagnosis, not a cure.' })).status, 200);
   assert.equal((await api('/api/state')).payload.repositories[0].procedures[0].helpingFactor, 61);

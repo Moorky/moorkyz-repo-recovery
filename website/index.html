@@ -6,6 +6,7 @@
   <title>Moorkyz Recovery | Repository Medikit</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/guidance.css">
   <script src="/app.js" type="module"></script>
 </head>
 <body>
@@ -18,8 +19,36 @@
     </nav>
   </aside>
   <main>
-    <header class="topbar workbench-header"><h1><span class="workspace-icon" aria-hidden="true">+</span> Recovery workbench</h1><nav aria-label="Workbench resources"><a href="/docs" target="_blank" rel="noreferrer">READ THE DOCS</a><a href="https://github.com/Moorky/moorkyz-repo-recovery" target="_blank" rel="noreferrer">PUBLIC RECOVERY REPO</a><button id="open-settings" class="secondary" aria-label="Open settings">&#9881; Settings</button></nav></header>
+    <header class="topbar workbench-header"><h1><span class="workspace-icon" aria-hidden="true">+</span> Recovery workbench</h1><nav aria-label="Workbench resources"><a href="/manual" target="_blank" rel="noreferrer">Step-by-step manual</a><a href="#how-to-recover">How to recover</a><button id="refresh-saved" class="secondary">Refresh saved evidence</button><button id="open-settings" class="secondary" aria-label="Open settings">&#9881; Settings</button></nav></header>
     <div id="notice" class="notice" role="status" aria-live="polite">Connecting to the local workbench...</div>
+    <section class="recovery-hero" aria-labelledby="recovery-heading">
+      <div><p class="eyebrow">PRESERVE FIRST / VERIFY EVERY CHANGE</p><h2 id="recovery-heading">Bring your work back.<br>Keep the evidence.</h2><p>One clear recovery case at a time. Protect the original, find what survived, and prove the result on an independent copy.</p><div class="hero-actions"><a class="primary" href="#cases">Choose a project</a><a class="secondary" href="/manual">Open the complete manual</a></div></div>
+      <aside class="hero-snapshot"><span class="eyebrow">YOUR SAVED WORKSPACE</span><strong id="guided-case-count">Waiting for evidence</strong><p>No automatic repairs, uploads or branch resets. Saved checks describe a point in time, not continuous monitoring.</p></aside>
+    </section>
+    <section id="active-operation" class="operation-banner" aria-live="polite" hidden><strong id="active-operation-title"></strong><p id="active-operation-detail"></p></section>
+    <section id="how-to-recover" class="how-to-recover" aria-labelledby="how-to-title">
+      <div class="section-title"><div><p class="eyebrow">START HERE</p><h2 id="how-to-title">How to recover <span data-help="workflow"></span></h2></div><a href="/manual#the-seven-step-workflow">Detailed walkthrough →</a></div>
+      <ol class="recovery-roadmap">
+        <li><strong>Define &amp; inspect</strong><p>Choose the missing capability or known-good version. Inspect; do not assume clean means complete.</p></li>
+        <li><strong>Protect two copies</strong><p>Save active work. Preview new external backup and working directories, approve, and verify.</p></li>
+        <li><strong>Check integrity</strong><p>Check Git objects on the working copy. A failure is evidence, not permission to reset.</p></li>
+        <li><strong>Find &amp; recover</strong><p>Compare a commit, reflog entry or approved remote. Preview every file before restoring.</p></li>
+        <li><strong>Run real tests</strong><p>Review resolved commands, approve execution, and fix failures in the disposable copy.</p></li>
+        <li><strong>Validate the target</strong><p>Record acceptance and limitations. Recheck hashes, original stability and candidate freshness.</p></li>
+        <li><strong>Review &amp; hand off</strong><p>Save your final report. Delivery does not copy changes into the original or deploy anything.</p></li>
+      </ol>
+      <p class="warning">Never run a reset, cleanup, branch switch or “repair all” against your only surviving copy. <a href="/manual#when-to-stop">Know when to stop.</a></p>
+    </section>
+    <section class="measured-overview" aria-labelledby="measured-title">
+      <div class="section-title"><div><p class="eyebrow">OBSERVED / NOT PREDICTED</p><h2 id="measured-title">Recovery evidence at a glance</h2></div><a href="/manual#understanding-the-statistics">What these numbers mean</a></div>
+      <p class="muted">All discovered cases; independent of table search and diagnostic date filters. Unknown stays unknown. Expand a panel or use ? for its definition.</p>
+      <div class="measured-grid">
+        <details class="measured-panel" open><summary>Evidence gates <span data-help="health"></span></summary><p>Which safety and validation gates have saved evidence.</p><dl id="gate-statistics" class="measured-facts"></dl></details>
+        <details class="measured-panel" open><summary>History &amp; missing paths <span data-help="history"></span></summary><p>Local Git evidence, not a lost-data estimate.</p><dl id="history-statistics" class="measured-facts"></dl></details>
+        <details class="measured-panel"><summary>Preservation &amp; retention <span data-help="preservation"></span></summary><p>One known baseline per case. Exact retained files are not product completeness. <span data-help="retention"></span></p><dl id="copy-statistics" class="measured-facts"></dl></details>
+        <details class="measured-panel"><summary>Attempts &amp; elapsed time <span data-help="timing"></span></summary><p>Real attempt history. Earlier failures remain visible even after recovery.</p><dl id="run-statistics" class="measured-facts"></dl></details>
+      </div>
+    </section>
     <div id="workspace-sections" class="workspace-sections">
     <section id="introduction" class="workbench-section" aria-labelledby="introduction-title">
     <div class="compact-hero"><div><h2 id="introduction-title">Introduction</h2><p>Your cases. Your focus. Choose a treatment and examine the evidence.</p></div><button id="reset-workspace" class="secondary reset-workspace">RESET WORKSPACE LAYOUT</button></div>
@@ -48,7 +77,8 @@
     <section id="cases" class="workbench-section" aria-labelledby="cases-title"><h2 id="cases-title">Cases</h2><div id="cases-panels" class="workspace-sections">
     <details class="workspace-panel" data-section="cases" open><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Repository cases section; Up/Down keys or drag">&#10303;</button><span>Repository cases</span><small>Examine, compare and treat</small></summary><div class="section-content">
     <section id="portfolio" class="panel" aria-labelledby="list-title">
-      <div class="panel-heading list-heading"><h2 id="list-title">Repository cases</h2><button id="rescan" class="secondary">Rescan</button></div>
+      <div class="panel-heading list-heading"><h2 id="list-title">Repository cases</h2><button id="download-report" class="secondary" disabled>Download Markdown report</button><button id="rescan" class="secondary">Rescan roots &amp; reset gates</button><span data-help="rescan"></span></div>
+      <p class="muted">Markdown exports saved inspections and notes, not a fresh scan or proof of completeness. Inspect each case first, or use the assess CLI for a fresh portfolio report. Review private evidence before sharing.</p>
       <div class="directory-line"><span class="live-dot"></span><code id="root">Loading directory...</code><span id="scan-time"></span></div>
       <div class="toolbar list-toolbar">
         <div class="smart-search"><label for="search" class="sr-only">Smart case search</label><input id="search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-suggestions" placeholder="Search cases… try state:source-only or a file name" autocomplete="off"><div id="search-suggestions" role="listbox" aria-label="Matching cases" hidden></div></div>
@@ -63,7 +93,9 @@
         <button id="reset-filters" class="secondary">Clear filters</button>
       </div>
       <div class="list-options"><p id="list-count" role="status" aria-live="polite">Loading cases...</p><span class="list-hint">Drag grips to arrange · Click attributes · Double-click a row to expand</span><button id="reset-layout" class="secondary">Reset table layout</button></div>
-      <div class="table-wrap"><table class="case-table"><thead><tr>
+      <div id="case-cards" class="recovery-case-grid" aria-label="Projects and next safe steps"></div>
+      <button id="toggle-detail-table" type="button" class="secondary" aria-expanded="false" aria-controls="detailed-case-table">Show advanced table</button>
+      <div id="detailed-case-table" class="table-wrap" hidden><table class="case-table"><thead><tr>
         <th scope="col"><span class="column-tip" tabindex="0">Repository / ID<span role="tooltip">Independent project or Git root. README-only component folders are excluded. ID is local path identity, not a remote identifier.</span></span></th>
         <th scope="col"><span class="column-tip" tabindex="0">State / activity<span role="tooltip">Examination or case state, updated-at timestamp, unchanged-since observation. Unchanged time is based on observations, not continuous monitoring.</span></span></th>
         <th scope="col"><span class="column-tip" tabindex="0">Stay / disposition<span role="tooltip">Total time from first discovery to delivery/dismissal or now. Delivery and dismissal are explicit decisions with a final report.</span></span></th>
@@ -87,6 +119,8 @@
     <dialog id="case-dialog" class="case-dialog" aria-labelledby="selected-name"><section id="medikit" class="panel medikit">
       <div class="panel-heading"><div><p class="eyebrow">CASE / MEDIKIT</p><h2 id="selected-name">Choose a repository</h2><p class="muted" id="selected-path">Open a medikit from the table to begin.</p></div><div class="case-header-actions"><button id="evidence" class="secondary" disabled>Evidence</button><button id="close-case" class="secondary" aria-label="Close expanded case">Close</button></div></div>
       <div id="case-notice" class="notice" role="status" aria-live="polite">Select a procedure or edit this case.</div>
+      <div id="case-copy-map" class="case-copy-map"></div>
+      <p class="case-next-note" id="case-next-note"></p>
       <div class="kit-grid">
         <div class="kit-steps" id="steps"></div>
         <div class="kit-detail">
@@ -95,16 +129,22 @@
             <div id="copy-fields" hidden>
               <label>Untouched preservation backup<input name="backup" id="backup" placeholder="C:\Recovery\backup\project" autocomplete="off"></label>
               <label>Independent disposable working copy<input name="workingCopy" id="working-copy" placeholder="C:\Recovery\working\project" autocomplete="off"></label>
-              <p class="warning">This verifies existing copies; it does not create a backup. All files, including ignored files and .git, are hashed. Large repositories can take time. Links/worktrees need separate acquisition.</p>
+              <p class="warning">This verifies existing copies. To create them safely, use the Recovery workflow tab below. All files, including ignored files and .git, are hashed. Stop writers first. Linked worktrees/junctions need separate manual acquisition.</p>
             </div>
             <div id="quality-fields" hidden>
-              <label>Validation profile<select id="profile"><option value="node">Node: declared test / lint / build / typecheck</option><option value="documentation">Documentation only: local Markdown file links</option></select></label>
-              <label class="checkbox"><input type="checkbox" id="approve"> I authorize running the declared package scripts on the verified disposable working copy. These scripts execute repository code and may write files, access the network or invoke external tools.</label>
+              <label>Validation profile<select id="profile"><option value="node">Node: declared root test / lint / build / typecheck</option><option value="custom">Reviewed commands: nested packages / Python / PowerShell / .NET</option><option value="documentation">Documentation only: local Markdown file links</option></select></label>
+              <label>Per-check timeout (seconds)<input id="check-timeout" type="number" min="1" max="1800" value="120"></label>
+              <label id="custom-checks" hidden>Reviewed command list (JSON)<textarea id="check-commands" rows="8" spellcheck="false">[{"name":"tests","kind":"test","runner":"package","manager":"pnpm","script":"test","directory":"."}]</textarea></label>
+              <button id="preview-quality" type="button" class="secondary">Preview validation commands</button>
+              <pre id="quality-preview">Preview commands before approving code execution.</pre>
+              <label class="checkbox"><input type="checkbox" id="approve"> I approve this validation preview on the disposable working copy. Repository code is not sandboxed and may write files, access the network or invoke external tools.</label>
               <p class="warning">No automatic dependency installs. Missing tests block final product-quality scoring. Documentation-only checks cannot stand in for product tests.</p>
             </div>
+            <label id="acceptance-field" hidden>Reviewed recovery target, checks and remaining limitations<textarea id="recovery-acceptance" rows="4" placeholder="State what was restored, which checks verify it, and any unverified behavior. File retention alone is not functional acceptance."></textarea></label>
             <button type="submit" class="primary" id="run-action" disabled>Choose a repository</button>
           </form>
           <p id="job-status" role="status" aria-live="polite" class="job-status">No job running.</p>
+          <button id="cancel-quality" type="button" class="secondary" hidden>Cancel running validation</button>
           <div class="kit-note"><strong>Evidence is not a guarantee</strong><p>Measurements inform estimates. Condition × relational quality / 100 is a scenario estimate; confidence is not a probability. Known-file retention is a separate measured fact.</p></div>
         </div>
       </div>
@@ -113,6 +153,7 @@
           <button role="tab" aria-selected="true" data-tab="case-editor">Case &amp; outcomes</button>
           <button role="tab" aria-selected="false" data-tab="estimate-editor">Paired estimates</button>
           <button role="tab" aria-selected="false" data-tab="fix-editor">Fix scripts</button>
+          <button role="tab" aria-selected="false" data-tab="workflow-editor">Recovery workflow</button>
           <button role="tab" aria-selected="false" data-tab="procedure-editor">Procedures used</button>
         </div>
         <section id="case-editor" class="tool-pane" role="tabpanel">
@@ -152,6 +193,33 @@
           <pre id="fix-preview">No preview yet.</pre>
           <label class="checkbox"><input type="checkbox" id="approve-fix"> I approve this exact preview on the disposable working copy.</label>
           <button id="apply-fix" class="primary" disabled>Apply reviewed fix</button>
+        </section>
+        <section id="workflow-editor" class="tool-pane" role="tabpanel" hidden>
+          <h3>Preserve, compare and recover</h3>
+          <p>Inspect first. Create or verify copies before historical or remote work. Nothing below writes to the original. See the <a href="/workflow" target="_blank" rel="noreferrer">guided recovery handbook</a>.</p>
+          <form id="workflow-form" class="editor-grid">
+            <label class="wide">Procedure<select id="workflow-action">
+              <option value="acquire-preview">Preview creation of full backup + working copy</option>
+              <option value="history">Discover commits, reflog and saved unreachable commits</option>
+              <option value="compare">Compare a historical commit with the working copy</option>
+              <option value="restore-preview">Preview restoration of one historical file</option>
+              <option value="rescue-preview">Preview a new recovery branch for a lost commit</option>
+              <option value="remote-preview">Compare fresh configured-remote refs / preview import</option>
+            </select></label>
+            <label data-workflow="acquire-preview">New backup directory<input id="workflow-backup" placeholder="C:\Recovery\project-backup" autocomplete="off"></label>
+            <label data-workflow="acquire-preview">New disposable-copy directory<input id="workflow-working" placeholder="C:\Recovery\project-working" autocomplete="off"></label>
+            <label data-workflow="compare restore-preview rescue-preview" hidden>Commit, ref or reflog selector<input id="workflow-ref" value="HEAD" list="history-refs" autocomplete="off"><datalist id="history-refs"></datalist></label>
+            <label data-workflow="restore-preview" hidden>Relative file path<input id="workflow-file" placeholder="src\feature.ts" autocomplete="off"></label>
+            <label data-workflow="rescue-preview" hidden>New branch name<input id="workflow-branch" value="recovery/lost-work" autocomplete="off"></label>
+            <label data-workflow="remote-preview" hidden>Configured remote<input id="workflow-remote" value="origin" autocomplete="off"></label>
+            <label data-workflow="remote-preview" class="checkbox wide" hidden><input id="approve-network" type="checkbox"> I authorize contacting this configured HTTPS/local remote. Git may invoke configured authentication helpers. No code or branch is published.</label>
+            <p class="warning wide">New copy destinations must not exist; their parents must exist outside the portfolio and state folders. Partial failed copies are retained for review, never overwritten or called verified. History restore is byte-exact and never checks out/resets a branch.</p>
+            <button type="submit" class="secondary" id="run-workflow">Preview / inspect selected procedure</button>
+          </form>
+          <pre id="workflow-output">Choose a procedure. Previews never apply changes.</pre>
+          <div id="history-files" class="history-files"></div>
+          <label class="checkbox"><input id="approve-workflow" type="checkbox"> I approve the exact current preview and destination. Remote import creates a new namespace only; recovery branches never replace existing branches.</label>
+          <button id="apply-workflow" class="primary" type="button" disabled>Apply approved preview</button>
         </section>
         <section id="procedure-editor" class="tool-pane" role="tabpanel" hidden>
           <p class="muted">Every procedure attempt is recorded with its time and outcome. Helping factors remain unassessed until reviewed.</p>

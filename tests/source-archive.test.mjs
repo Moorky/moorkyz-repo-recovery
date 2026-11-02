@@ -15,6 +15,8 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   fs.writeFileSync(path.join(root, 'src', 'tool.mjs'), 'export const fixture = true;');
   fs.writeFileSync(path.join(root, 'src', '.env.json'), '{"private":true}');
   fs.writeFileSync(path.join(root, '.env'), 'private');
+  fs.writeFileSync(path.join(root, 'PROJECT_RECOVERY_ASSESSMENT.md'), '# private portfolio findings');
+  fs.writeFileSync(path.join(root, 'PORTFOLIO_REPAIR_RESULTS.md'), '# private repair findings');
   fs.writeFileSync(path.join(root, 'docs', 'sources', 'private.md'), 'private');
   fs.writeFileSync(path.join(root, '.git', 'config'), 'private');
   fs.writeFileSync(path.join(root, 'website', 'fonts', 'DMMono-Regular.ttf'), Buffer.from([0, 1, 0, 0, 17, 25]));
@@ -31,6 +33,8 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   assert.ok(archive.includes(Buffer.from('Font license')));
   assert.ok(archive.includes(Buffer.from('website/favicon.svg')));
   assert.ok(!archive.includes(Buffer.from('private')));
+  assert.ok(!archive.includes(Buffer.from('PROJECT_RECOVERY_ASSESSMENT.md')));
+  assert.ok(!archive.includes(Buffer.from('PORTFOLIO_REPAIR_RESULTS.md')));
 });
 
 test('every documented supply has a real source file and unique ID', () => {

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { containedBy } from '../recovery.mjs';
-import { snapshot, ensurePreserved } from './engine.mjs';
+import { ensurePreserved } from './engine.mjs';
+import { targetFile, readTarget, replaceFile, relativeFile, sha256, planHash } from './files.mjs';
 
 export const remedies = [
   { id: 'restore-file', name: 'Restore a baseline file', description: 'Restore one missing or changed file from the verified untouched backup, in the working copy only.' },
@@ -10,30 +10,17 @@ export const remedies = [
   { id: 'repair-link', name: 'Repair a Markdown file link', description: 'Replace an exact local link target with an existing file inside the working copy.' },
 ];
 
-function targetFile(root, relative, mustExist = false) {
-  if (typeof relative !== 'string' || !relative || path.isAbsolute(relative)) throw new Error('Enter a relative file path.');
-  const file = path.resolve(root, relative);
-  if (!containedBy(file, root) || file === root || path.relative(root, file).split(path.sep).includes('.git')) {
-    throw new Error('File must stay inside the working copy and outside Git metadata.');
-  }
-  if (!fs.existsSync(path.dirname(file))) throw new Error('Target parent must already exist.');
-  if (fs.realpathSync(path.dirname(file)) !== path.dirname(file)) throw new Error('Linked parent paths are not supported.');
-  if (fs.existsSync(file) && (fs.lstatSync(file).isSymbolicLink() || !fs.statSync(file).isFile())) throw new Error('Target must be a regular file.');
-  if (mustExist && !fs.existsSync(file)) throw new Error('Target file does not exist.');
-  return file;
-}
-
 function plan(repository, input) {
   const preservation = repository.records.preservation;
   if (!preservation) throw new Error('Verify preservation before using fix scripts.');
   ensurePreserved(repository.path, preservation);
-  snapshot(preservation.workingCopy);
-  const file = targetFile(preservation.workingCopy, input.file, input.remedy !== 'restore-file');
-  const before = fs.existsSync(file) ? fs.readFileSync(file) : null;
+  const relative = relativeFile(input.file);
+  const file = targetFile(preservation.workingCopy, relative, { mustExist: input.remedy !== 'restore-file', missingParents: true });
+  const before = readTarget(file);
   let after;
   if (input.remedy === 'restore-file') {
-    if (!preservation.baseline.files[input.file]) throw new Error('This file is not part of the preserved baseline.');
-    after = fs.readFileSync(targetFile(preservation.backup, input.file, true));
+    if (!preservation.baseline.files[relative]) throw new Error('This file is not part of the preserved baseline.');
+    after = readTarget(targetFile(preservation.backup, relative, { mustExist: true }));
   } else if (['normalize-text', 'repair-link'].includes(input.remedy)) {
     if (!/\.(md|txt|json|js|mjs|cjs|ts|css|html|yml|yaml|ps1)$/i.test(file) || before.length > 2 * 1024 * 1024) throw new Error('Use a supported text file below 2 MiB.');
     const text = new TextDecoder('utf-8', { fatal: true }).decode(before);
@@ -50,14 +37,14 @@ function plan(repository, input) {
       after = Buffer.from(text.split(needle).join(`](${input.newTarget})`));
     }
   } else throw new Error('Unknown fix script.');
-  const hash = bytes => bytes === null ? null : crypto.createHash('sha256').update(bytes).digest('hex');
+  const hash = bytes => bytes === null ? null : sha256(bytes);
   const preview = {
-    remedy: input.remedy, file: input.file, beforeHash: hash(before), afterHash: hash(after),
+    remedy: input.remedy, file: relative, beforeHash: hash(before), afterHash: hash(after),
     beforeBytes: before?.length ?? 0, afterBytes: after.length,
     changed: hash(before) !== hash(after),
     workingCopy: preservation.workingCopy,
   };
-  return { file, after, preview, planHash: crypto.createHash('sha256').update(JSON.stringify(preview)).digest('hex') };
+  return { file, after, preview, planHash: planHash(preview) };
 }
 
 export function fix(repository, action, input) {
@@ -65,14 +52,7 @@ export function fix(repository, action, input) {
   if (action === 'fix-preview') return { at: new Date().toISOString(), ...prepared.preview, planHash: prepared.planHash };
   if (input.approved !== true || input.planHash !== prepared.planHash) throw new Error('Approve the current unchanged preview before applying.');
   if (!prepared.preview.changed) throw new Error('Preview has no changes to apply.');
-  const temporary = `${prepared.file}.recovery-${crypto.randomUUID()}.tmp`;
-  const mode = fs.existsSync(prepared.file) ? fs.statSync(prepared.file).mode : 0o600;
-  try {
-    fs.writeFileSync(temporary, prepared.after, { flag: 'wx', mode });
-    fs.renameSync(temporary, prepared.file);
-  } finally {
-    if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-  }
+  replaceFile(prepared.preview.workingCopy, prepared.preview.file, prepared.after, prepared.preview.beforeHash);
   ensurePreserved(repository.path, repository.records.preservation);
   return { at: new Date().toISOString(), ...prepared.preview, planHash: prepared.planHash, passed: true };
 }

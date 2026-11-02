@@ -1,5 +1,36 @@
 # Dashboard, estimates and medikit
 
+## Guided operator interface
+
+The top-level How to recover checklist links to the [operator manual](USER_GUIDE.md).
+Project cards show the next safe gate without executing it. The original, backup
+and working-copy locations are shown together inside each case. The advanced
+wide table is opt-in; its filters and saved column layout remain available.
+
+Four expandable measured panels show evidence gates, Git/history counts,
+baseline bytes/files/link metadata and retention, and historical attempt counts/
+known timing. These use all discovered cases, independently of list filters and
+diagnostic date filters. Unknown fields in older records remain unknown. No loss
+percentage, free-space measurement or repair ETA is fabricated.
+
+Question-mark help opens on hover, focus or click/tap, closes with Escape/Close,
+and links to the exact manual section. The active-operation banner states elapsed
+time and limitations. Refresh saved evidence never resets gates; the distinctly
+labelled rescan action still requires confirmation and deliberately resets gates.
+
+Layout follows the available content width, not just the screen width: below
+760px of workbench content, workspace panels use the full row. Header actions
+wrap, hero links do not inherit full-width form-button styling, and panel
+resize handles sit below content instead of competing with title/help controls.
+On mobile, navigation becomes three compact tabs; sidebar reorder grips remain
+available on wider screens. The detailed table keeps its own horizontal scroll.
+
+New attempts record nonnegative observed duration; older attempts without timing
+are excluded from median duration. Previous failed attempts are historical
+failures, not necessarily currently broken cases. Markdown documentation is
+rendered locally with escaped HTML, conservative links and headings/lists/tables;
+no remote renderer or CDN dependency.
+
 ## Run locally
 
 ```powershell
@@ -153,7 +184,7 @@ The top-left workbench icon/title and top-right READ THE DOCS, PUBLIC RECOVERY
 REPO and Settings button are always visible. A very compact introduction leads
 straight into the inline MedKit and statistics, without an About/landing page.
 The global MedKit can be opened before any case is selected; it shows shuffled
-cards for all nine supported procedures. Cards link to dedicated local guides,
+cards for all supported procedures. Cards link to dedicated local guides,
 actual script source, setup and the complete procedure handbook. Shuffling
 changes presentation only; it does not select or execute random procedures.
 
@@ -171,7 +202,7 @@ forensic recovery backup**, and it never downloads another case's repository.
 
 ### Focusable statistics workspace
 
-The inline MedKit presents three shuffled supplies and opens all nine in its full
+The inline MedKit presents three shuffled supplies and opens the complete catalog in its full
 panel. Setup and source-download links live with the supplies, not in the header.
 Below it, independent accordions expose overview, paired estimates, procedure
 performance, lifecycle/priorities and repository cases. All four estimate means
@@ -200,7 +231,8 @@ Settings contains the existing continuous/pages mode and batch size. All setting
 use localStorage; the interface is English-only, with no bilingual/language toggle.
 
 The linked footer follows moorkyz.com's `made /w` mark, year and Moorkyz line,
-fixed scrim, fading hairline, DM Mono and glint. The deployed site's timing was
+in-flow scrim, fading hairline, DM Mono and glint. It no longer overlays the
+viewport or obscures content. The deployed site's timing was
 verified: 900ms fade after 400ms, then one 2.4s glint after 1.5s (not an invented
 repeating interval). Reduced motion disables both. It links to moorkyz.com;
 there are no Impressum/legal links. The bundled DM Mono font and its OFL license
@@ -269,6 +301,13 @@ quality accepts 0-1000% as a practical UI/input bound, not a theoretical maximum
 No number is invented before examination. Potential/current values are shown
 in paired grids within the same column with examination timestamps and labels.
 
+Inspection also records explicit Git/index evidence: missing index paths,
+staged deletions/renames, tracked audit/version paths, refs, stashes, shallow
+history and a bounded reflog sample. These do not replace the subjective rubric
+or prove completeness. See [portfolio assessment and Markdown export](TOOLING.md).
+Use **Download Markdown report** in Repository cases to export saved inspections
+and case notes, including unknown/uninspected cases. No inspection runs on download.
+
 **Measured baseline retention** remains separate recorded evidence:
 `exact byte-identical original files retained / original files * 100`.
 Changed baseline files reduce that measurement even if intentionally improved;
@@ -279,15 +318,22 @@ new files are not losses. This does not estimate unknown lost history.
 1. Inspect local structure/Git metadata without product execution.
 2. Verify an untouched backup and independent disposable working copy.
 3. Run non-writing Git fsck on the working copy (source-only Git is N/A).
-4. Approve/run declared npm test/lint/build/typecheck, or eligible docs-only links.
+4. Preview/approve declared npm checks, reviewed nested/multi-stack commands, or eligible docs-only links.
 5. Validate baseline retention, backup/original stability and candidate freshness.
+
+The [guided recovery workflow](GUIDED_RECOVERY.md) adds previewed full-copy
+acquisition, commit/reflog discovery, historical comparison/restoration, recovery
+branches and explicitly approved remote inspection/import. These procedures live
+in the Recovery workflow tab and respect the same preservation gates.
 
 Full preservation hashes all regular files, including ignored files, dependencies
 and `.git`; it can take substantial time. Linked worktrees/external Git metadata
 need separate acquisition. Copies must remain outside original/project/scan/state
 roots. Node checks require a real test script and explicit code-execution approval.
-No automatic package installations. Commands have two-minute timeouts and 8 MiB
-output limits; they are not sandboxed and may spawn other processes.
+No automatic package installations. Commands have a default two-minute timeout,
+configurable to 1-1800 seconds, and 8 MiB output limits. Validation cancellation
+terminates the owned process tree where possible and records cleanup failures.
+Commands are not sandboxed and may spawn other processes.
 
 ### Actual fix scripts
 
@@ -329,7 +375,8 @@ case notes, lifecycle and procedure history. SQLite retains evidence and reviewe
 estimates across restarts. Browser tables are not real-time monitoring guarantees.
 
 The server binds loopback only with same-origin Host/Origin/token checks.
-No remote history repair, automatic merge/reset/push/deployment or cloud upload.
+Optional approved HTTPS/local remote imports stay in new working-copy namespaces.
+No automatic merge/reset/push/deployment or cloud upload.
 See [security boundaries](../SECURITY.md).
 
 ```powershell

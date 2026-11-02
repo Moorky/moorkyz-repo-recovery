@@ -22,6 +22,7 @@ export function observe(repository, result) {
   initialize(repository, result.at);
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify({
     measured: result.measured, hasGit: result.hasGit, state: result.state, commands: result.commands,
+    recoveryEvidence: result.recoveryEvidence,
   })).digest('hex');
   if (repository.observationFingerprint !== fingerprint) changed(repository, 'Examination changed', result.at);
   repository.observationFingerprint = fingerprint;
@@ -80,6 +81,7 @@ export function updateCase(repository, input, at = new Date().toISOString()) {
   } else if (input.type === 'deliver' || input.type === 'dismiss') {
     if (!repository.case.finalReport.trim()) throw new Error('A final report is required for delivery or dismissal.');
     if (input.type === 'deliver' && !repository.records.recovery) throw new Error('Validate recovery before marking delivered.');
+    if (input.type === 'deliver' && !repository.records.recovery.acceptance) throw new Error('Review and record the recovery target and remaining limitations before delivery.');
     repository.lifecycle.updatedAt = at;
     repository.lifecycle[input.type === 'deliver' ? 'deliveredAt' : 'dismissedAt'] = at;
     repository.lifecycle[input.type === 'deliver' ? 'dismissedAt' : 'deliveredAt'] = null;

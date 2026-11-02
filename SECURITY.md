@@ -8,12 +8,19 @@ The entire historical source directory is Git-ignored by default. The canonical
 guides contain only project-level summaries. Ignore rules are a guardrail, not a
 secret scanner: forced staging and already tracked files bypass them.
 
-Before the owner creates/publishes Git:
+Before committing or publishing repository content:
 
 1. Review every file proposed for staging; never stage full backups.
 2. Keep raw inventories, evidence media, `.env`, tokens and private logs excluded.
 3. Review archived inputs locally and publish only deliberately sanitized material.
 4. Decide project licensing and source-release permissions.
+
+The owner-requested `PROJECT_RECOVERY_ASSESSMENT.md` is a dated project-level
+report kept here explicitly, excluded from the root-file allowlist for the
+parent-project source ZIP. Newly generated Markdown/JSON assessments and
+dashboard Markdown exports may contain private paths and case notes: retain
+them externally and review them before sharing. Markdown export uses the same
+session/origin restrictions as private evidence; it never fetches a remote.
 
 Report suspected exposure privately to the owner, without copying secrets into
 an issue, audit or chat. Do not rotate credentials, publish evidence or change
@@ -33,16 +40,24 @@ is stored outside the scan/project tree.
 Do not proxy or expose this server to a network: it is a trusted-local-user tool,
 not a multiuser authenticated service.
 
+Private attempt outputs persist as unique JSON files under the external data
+directory, alongside SQLite. `/api/attempt/<id>` requires the session token and
+only accepts generated UUID filenames. These records survive rescans and must
+not be copied into source-control or public archives.
+
 Discovery and inspection do not execute product code. Full preservation checks
-reject links/junctions and linked Git worktrees that need external metadata.
+allow only contained relative links, recorded without traversal, and reject
+absolute/escaping links and linked Git roots that need external metadata.
 Node package checks require explicit approval and run only on a verified
 independent disposable working copy. **They are not sandboxed:** package scripts
 may access the network, absolute paths or external systems. Review them first;
 copy separation is not protection against malicious code.
 
 Stop the dashboard only after the current check finishes. Process timeouts are
-failures, not approval or proof that descendant processes have stopped; inspect
-any script-spawned background processes separately. No dependency installation,
+failures, not approval or proof that deliberately detached descendants have stopped.
+Cancellation attempts to stop the owned process tree using exact PIDs/process groups;
+cleanup errors are recorded. Inspect script-spawned background processes separately.
+No automatic dependency installation,
 merge, reset, garbage collection, push or deployment is automated.
 
 The SQLite database, WAL/SHM files, examination logs, reviewer estimates and
@@ -76,3 +91,25 @@ local favicon SVG. Other SVG/binary paths remain excluded.
 This is not a forensic backup, full Git export or secret scanner. Review allowed
 source content before sharing; fixed path exclusions cannot detect secrets
 embedded in otherwise valid source files.
+
+## Guided acquisition and historical recovery
+
+Acquisition previews hash the complete source and bind new external destinations.
+Apply refuses existing targets, absolute/escaping links, external Git metadata
+and stale previews. Contained relative-link metadata is hashed and copied verbatim.
+Failure retains partial copies for review, never a successful preservation result.
+Only verified ordinary copies advance to repairs.
+
+Historical restoration binds commit/file IDs and before/after hashes, writes
+regular files atomically, and rejects metadata/traversal paths. Recovery branches
+use a must-not-exist ref update with hooks disabled; no checkout/reset occurs.
+Remote operations require separate contact permission and apply approval.
+Only configured HTTPS or absolute local remotes are supported, and credential-
+bearing URL/query/fragment values are rejected. HTTPS may still use configured
+credential helpers: review Git configuration and do not assume these helpers
+are sandboxed. Fetch uses an isolated new ref namespace, disabled hooks, no
+submodules, tags auto-follow, FETCH_HEAD writes or automatic maintenance.
+
+Scope, limits and supported validation runners are documented in
+[guided recovery](docs/GUIDED_RECOVERY.md). Owner-approved code remains capable
+of accessing external systems; independent copies are not a security sandbox.

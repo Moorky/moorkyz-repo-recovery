@@ -6,11 +6,32 @@ without a Git repository, external network access or package installation.
 
 ## Start here
 
+New to recovery? Open the [complete step-by-step operator manual](docs/USER_GUIDE.md).
+The dashboard links to its readable local edition at `/manual`, with a table of
+contents, scenario troubleshooting, metric definitions and a final checklist.
+
 1. Read the [documentation map](docs/README.md).
 2. Follow the [recovery handbook](docs/RECOVERY_HANDBOOK.md), beginning with preservation.
 3. Use the [portfolio triage](docs/PORTFOLIO.md) to choose a case.
 4. Record that case with the [case template](docs/templates/CASE.md).
 5. Validate and hand off using the [audit template](docs/templates/AUDIT.md).
+
+See [what works, remaining gaps and effort estimates](docs/READINESS.md) before
+using this tool on another project. The owner's
+[portfolio assessment](PROJECT_RECOVERY_ASSESSMENT.md) is retained as a dated
+triage report, not a completeness certificate.
+
+The subsequent [portfolio repair results](PORTFOLIO_REPAIR_RESULTS.md) separate
+verified baselines, integrated source fixes and the remaining Evidence migration
+barrier. Do not mistake the earlier assessment for a current completion claim.
+These owner-local portfolio reports are deliberately omitted from the source
+ZIP; their links refer to this checkout, not to files bundled for redistribution.
+
+For actual supervised recovery, follow the
+[complete guided workflow](docs/GUIDED_RECOVERY.md): preview/acquire two copies,
+discover Git/reflog history, compare a selected commit, restore reviewed files,
+run approved validation and write the handoff. Optional remote imports go only
+to unique recovery refs in the disposable copy. Originals remain untouched.
 
 **Never treat an inventory as a backup.** Never run a repair against the only
 surviving copy. This project does not automatically merge, reset, fetch, publish
@@ -24,9 +45,15 @@ Double-click `RUN.cmd` for help, or run:
 
 ```powershell
 node .\src\recovery.mjs help
+node .\src\recovery.mjs assess --root "C:\Users\marvi\source\repos" --output "C:\Recovery\assessment-001"
 node --test .\tests\recovery.test.mjs
 node .\scripts\check-project.mjs
 ```
+
+For `assess`, the output parent must exist and the output folder must be new.
+It writes private Markdown/JSON outside the scanned tree. No repair, remote
+access or product code execution occurs. The dashboard's **Download Markdown
+report** exports saved inspections instead; inspect cases first.
 
 ## Recovery dashboard
 
@@ -62,7 +89,10 @@ no AI model runner or independent model scores exist yet.
 The five stages are inspection, preservation verification, object integrity,
 approved quality checks and recovery-baseline validation. Paired potential/current
 estimates, lifecycle, findings, outcome reports and timestamped procedures are
-shown together. The medikit also offers previewable working-copy file fixes.
+shown together. The medikit offers previewable copy acquisition, historical-file
+restoration, recovery branches, optional remote import and working-copy file fixes.
+Validation supports reviewed nested and multi-stack commands, bounded timeouts
+and cancellation. The footer now stays in normal document flow.
 Read the
 [dashboard and scoring contract](docs/DASHBOARD.md) before interpreting a score.
 
@@ -109,6 +139,11 @@ No automatic sibling changes, remote inspection, integration, deployment, Git
 initialization or commit are included. Copy verification is byte-baseline
 verification, not a strict forensic acquisition certificate.
 
-Before creating the Git repository, review the [sharing policy](SECURITY.md).
+Explicitly approved HTTPS/local remote inspection/import is available on
+verified disposable copies; no remote is contacted during discovery/assessment.
+Owner choices before a real recovery are collected in
+[owner decisions](docs/OWNER_DECISIONS.md).
+
+Before publishing repository content, review the [sharing policy](SECURITY.md).
 Historical inputs are intentionally ignored by Git until reviewed. Licensing of
 the new project remains an owner decision; no license from another project is assumed.

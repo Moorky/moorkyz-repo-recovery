@@ -1,5 +1,37 @@
 # Supported tooling
 
+## Portfolio assessment
+
+```powershell
+node .\src\recovery.mjs assess --root "C:\preserved-copies" --output "C:\Recovery\assessment-001"
+```
+
+Uses the dashboard's bounded project discovery and read-only inspection. Writes
+`assessment.md` and `assessment.json` to a new external directory; the parent
+must already exist. Never overwrites an earlier report. Same containment rules
+as inventory below, including physical-parent/junction checks.
+
+The report includes working-tree state, Git-index missing files, staged deletions
+and renames, root package version/check scripts, tracked audit/version paths,
+local branches/tags, cached remote-ref count, reachable commit count, shallow
+history, stashes and up to 250 reflog entries. A staged deletion is not an
+unstaged missing index path. Neither proves unrecoverable loss. Audit paths can
+include templates; clean status is not a completeness test.
+
+No product scripts, installs, fsck, remote requests or repairs run. JSON retains
+raw Git results and per-case errors. One failed inspection does not hide other
+cases: partial reports are written and the CLI exits 1 with an explicit warning.
+Unknown values are not counted as zero. Enumeration failures abort rather than
+silently omitting inaccessible paths. Source-only projects have no fabricated
+Git counts. Missing historical/private data and product intent remain unmeasured.
+
+The dashboard's **Download Markdown report** uses the same renderer but exports
+only saved evidence. `/api/report.md` requires the existing session token and
+same-origin checks; export is blocked while a procedure is running. It never
+re-inspects or runs scripts. Older saved inspections without extended evidence
+say to re-inspect. Reports may contain private paths, filenames and case notes;
+keep them outside the repo and review before sharing.
+
 ## Inventory
 
 ```powershell
@@ -38,6 +70,7 @@ separate human-reviewed steps.
 ```powershell
 node --test .\tests\recovery.test.mjs
 node --test .\tests\dashboard.test.mjs
+node --test .\tests\report.test.mjs
 node .\scripts\check-project.mjs
 ```
 
@@ -46,6 +79,16 @@ They cover nested roots/worktrees, unchanged Git state, output containment,
 bad input and explicit command failures. The project checker verifies local
 Markdown file links outside the immutable originals and hashes all archived
 sources against the manifest. It does not certify external links or secrets.
+
+## Public checkout checks
+
+The immutable historical inputs are intentionally excluded from Git and source
+downloads. A clean public checkout reports their hash gate and references as
+**NOT RUN**, rather than requiring private evidence to be published or falsely
+claiming it was verified. If an archive directory exists without its manifest,
+the check fails as incomplete acquisition. Ordinary missing public links still
+fail. The two owner-local portfolio report links are explicitly optional in a
+downloaded source ZIP; they are not silently replaced with fabricated content.
 
 ## Historical scripts
 

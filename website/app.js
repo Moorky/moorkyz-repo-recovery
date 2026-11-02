@@ -1,5 +1,7 @@
 import { defaults, preferenceKey, validatePreferences, procedureExtremes, selectRepositories, listWindow, suggestions, columns, moveBefore, moveBy } from './list-model.mjs';
 import { initializeWorkspace, renderWorkspace } from './workspace.mjs';
+import { initializeGuidance, renderGuidance } from './guidance.mjs';
+import { nextStep } from './guidance-model.mjs';
 
 const stages = [
   { action: 'inspect', key: 'inspection', title: 'Inspect local condition', description: 'Read root structure, declared checks and Git state. Uncommitted work is preserved, not treated as permission to reset. This unlocks a measured condition rubric and a potential-quality estimate.' },
@@ -16,6 +18,11 @@ let selectedStage = 0;
 let polling = false;
 let fixPreview = null;
 let fixInput = null;
+let validationPreview = null;
+let workflowPreview = null;
+let workflowInput = null;
+const workflowApply = { 'acquire-preview': 'acquire-apply', 'restore-preview': 'restore-apply',
+  'rescue-preview': 'rescue-apply', 'remote-preview': 'remote-fetch' };
 let preferences = validatePreferences(defaults);
 let pageIndex = 0;
 let visibleLimit = defaults.pageSize;
@@ -197,13 +204,21 @@ function resetWindow() {
 function openCase(repo) {
   if (busy() && selectedId !== repo.id) return announce('Wait for the running procedure before opening a different case.', true);
   selectedId = repo.id;
-  selectedStage = Math.max(0, stages.findIndex(stage => !repo.records[stage.key] || repo.records[stage.key].passed === false));
+  selectedStage = nextStep(repo).stage;
   $('backup').value = '';
   $('working-copy').value = '';
   $('approve').checked = false;
   $('approve-fix').checked = false;
   fixPreview = null;
   fixInput = null;
+  resetWorkflow();
+  resetValidation();
+  $('workflow-output').textContent = 'Choose a procedure. No preview has been approved for this case.';
+  $('history-files').replaceChildren();
+  $('history-refs').replaceChildren();
+  $('recovery-acceptance').value = repo.records.recovery?.acceptance || '';
+  $('backup').value = repo.records.preservation?.backup || '';
+  $('working-copy').value = repo.records.preservation?.workingCopy || '';
   render();
   populateTools();
   if (!$('case-dialog').open) $('case-dialog').showModal();
@@ -340,8 +355,10 @@ function render() {
   $('preserved').textContent = state.repositories.filter(repo => repo.records.preservation).length;
   $('recovered').textContent = state.repositories.filter(repo => repo.records.recovery).length;
   $('rescan').disabled = busy();
+  $('download-report').disabled = busy();
   const list = selectRepositories(state.repositories, $('search').value, preferences);
   currentWindow = listWindow(list, preferences, pageIndex, visibleLimit);
+  renderGuidance(state, currentWindow.items);
   pageIndex = currentWindow.page;
   $('repositories').replaceChildren();
   for (const repo of currentWindow.items) {
@@ -464,6 +481,17 @@ function renderMedikit() {
   $('selected-name').textContent = repo?.name || 'Choose a repository';
   $('selected-path').textContent = repo?.path || 'Open a medikit from the table to begin.';
   $('case-tools').hidden = !repo;
+  $('case-copy-map').replaceChildren();
+  $('case-next-note').textContent = repo ? nextStep(repo).detail : '';
+  if (repo) {
+    for (const [label, value] of [['Original · never a repair target', repo.path],
+      ['Untouched backup', repo.records.preservation?.backup],
+      ['Disposable working copy · approved changes go here', repo.records.preservation?.workingCopy]]) {
+      const location = element('div');
+      location.append(element('strong', label), element('code', value || 'Not verified yet'));
+      $('case-copy-map').append(location);
+    }
+  }
   if (!repo) {
     $('stage-title').textContent = 'No repository selected';
     $('stage-description').textContent = 'Choose a repository to collect new evidence.';
@@ -490,6 +518,10 @@ function renderMedikit() {
   $('stage-description').textContent = stage.description;
   $('copy-fields').hidden = stage.action !== 'preserve';
   $('quality-fields').hidden = stage.action !== 'quality';
+  $('acceptance-field').hidden = stage.action !== 'recover';
+  $('cancel-quality').hidden = !(busy() && state.job.action === 'quality');
+  $('preview-quality').disabled = busy();
+  $('run-workflow').disabled = busy() || !repo.records.inspection;
   $('run-action').textContent = busy() ? 'Medikit job running...' : stage.title;
   $('run-action').disabled = busy() || !ready(repo, selectedStage);
   const job = state.job;
@@ -653,7 +685,8 @@ $('case-dialog').addEventListener('click', event => {
 });
 $('case-dialog').addEventListener('close', () => {
   const row = document.querySelector(`tr[data-repository-id="${selectedId}"]`);
-  (row || $('search')).focus();
+  const card = document.querySelector(`[data-case-open="${selectedId}"]`);
+  ($('detailed-case-table').hidden ? card || $('search') : row || card || $('search')).focus();
 });
 $('rescan').addEventListener('click', async () => {
   if (!confirm('Rescan directory and reset all current score gates? Saved scores must not be reused for changed sources.')) return;
@@ -664,20 +697,38 @@ $('rescan').addEventListener('click', async () => {
     announce('Directory rescanned. Scores are provisional until new evidence is collected.');
   } catch (error) { announce(error.message, true); }
 });
+$('download-report').addEventListener('click', async () => {
+  try {
+    const response = await fetch('/api/report.md', { headers: { 'X-Recovery-Token': token } });
+    if (!response.ok) throw new Error((await response.json()).error || `Report export failed (${response.status})`);
+    const url = URL.createObjectURL(await response.blob());
+    const link = element('a');
+    link.href = url;
+    link.download = 'recovery-assessment.md';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    announce('Saved-evidence Markdown report downloaded. No scan or repair ran. Review before sharing.');
+  } catch (error) { announce(error.message, true); }
+});
 $('action-form').addEventListener('submit', async event => {
   event.preventDefault();
   const repo = selected();
   if (!repo || busy()) return;
   const action = stages[selectedStage].action;
   try {
-    if (action === 'quality' && $('profile').value === 'node' && !$('approve').checked) throw new Error('Explicit script execution approval is required.');
+    if (action === 'quality' && $('profile').value !== 'documentation' && (!validationPreview || !$('approve').checked)) throw new Error('Preview and explicitly approve validation commands first.');
     if (action === 'preserve' && (!$('backup').value.trim() || !$('working-copy').value.trim())) throw new Error('Enter both independent copy paths.');
-    const input = { repositoryId: repo.id, action, backup: $('backup').value.trim(), workingCopy: $('working-copy').value.trim(), profile: $('profile').value, approved: $('approve').checked };
+    const input = { repositoryId: repo.id, action, backup: $('backup').value.trim(), workingCopy: $('working-copy').value.trim(),
+      ...(action === 'quality' ? validationInput() : {}), approved: $('approve').checked,
+      planHash: validationPreview?.planHash, acceptance: $('recovery-acceptance').value.trim() };
     await api('/api/task', input);
     $('approve').checked = false;
     await refresh();
     announce('Medikit job running. The server remains responsive; evidence gates update only after completion.');
     await watchJob();
+    validationPreview = null;
   } catch (error) { announce(error.message, true); }
 });
 $('evidence').addEventListener('click', async () => {
@@ -688,6 +739,11 @@ $('evidence').addEventListener('click', async () => {
 });
 $('close-dialog').addEventListener('click', () => $('evidence-dialog').close());
 const workspaceError = initializeWorkspace({ announce, resetTable: () => $('reset-layout').click() });
+initializeGuidance(openCase);
+$('refresh-saved').addEventListener('click', async () => {
+  try { await refresh(); announce('Saved evidence refreshed. No gates reset and no procedure started.'); if (busy() && !polling) await watchJob(); }
+  catch (error) { announce(error.message, true); }
+});
 (async () => {
   try {
     ({ token } = await api('/api/session'));
@@ -726,6 +782,17 @@ function populateTools() {
       element('p', procedure.rationale || 'Helping factor not assessed; review after examination.'));
     if (procedure.ratedAt) entry.append(element('p', `Helping factor reviewed at ${timestamp(procedure.ratedAt)}`));
     if (procedure.error) entry.append(element('p', procedure.error, 'warning'));
+    if (procedure.evidenceId) {
+      const evidence = element('button', 'Read archived attempt', 'secondary');
+      evidence.type = 'button';
+      evidence.addEventListener('click', async () => {
+        try {
+          $('evidence-content').textContent = JSON.stringify(await api(`/api/attempt/${procedure.evidenceId}`), null, 2);
+          $('evidence-dialog').showModal();
+        } catch (error) { announce(error.message, true); }
+      });
+      entry.append(evidence);
+    }
     $('procedure-list').append(entry);
     const option = element('option', `${timestamp(procedure.at)} / ${procedure.name}`);
     option.value = procedure.id;
@@ -797,5 +864,117 @@ $('apply-fix').addEventListener('click', async () => {
     $('approve-fix').checked = false;
     await refresh();
     await watchJob();
+  } catch (error) { announce(error.message, true); }
+});
+
+function resetValidation() {
+  validationPreview = null;
+  $('approve').checked = false;
+  $('quality-preview').textContent = 'Preview commands before approving code execution.';
+  $('custom-checks').hidden = $('profile').value !== 'custom';
+}
+function validationInput() {
+  return { profile: $('profile').value, timeoutSeconds: Number($('check-timeout').value),
+    ...($('profile').value === 'custom' ? { commands: JSON.parse($('check-commands').value) } : {}) };
+}
+for (const id of ['profile', 'check-timeout', 'check-commands']) $(id).addEventListener('input', resetValidation);
+$('preview-quality').addEventListener('click', async () => {
+  try {
+    if (!selected() || busy()) throw new Error('Select a case and wait for active jobs.');
+    resetValidation();
+    await api('/api/task', { repositoryId: selectedId, action: 'quality-preview', ...validationInput() });
+    await refresh();
+    await watchJob();
+    validationPreview = (await api(`/api/evidence/${selectedId}`))['quality-preview'] || null;
+    $('quality-preview').textContent = JSON.stringify(validationPreview || { error: state.job.error }, null, 2);
+  } catch (error) { announce(error.message, true); }
+});
+$('cancel-quality').addEventListener('click', async () => {
+  try { announce((await api('/api/cancel', {})).message); }
+  catch (error) { announce(error.message, true); }
+});
+function resetWorkflow() {
+  workflowPreview = null;
+  workflowInput = null;
+  $('apply-workflow').disabled = true;
+  $('approve-workflow').checked = false;
+  for (const field of document.querySelectorAll('[data-workflow]')) {
+    field.hidden = !field.dataset.workflow.split(' ').includes($('workflow-action').value);
+  }
+}
+$('workflow-form').addEventListener('input', resetWorkflow);
+function showWorkflow(record) {
+  $('workflow-output').textContent = JSON.stringify(record, null, 2);
+  $('history-files').replaceChildren();
+  if (record?.commits) {
+    $('history-refs').replaceChildren();
+    const seen = new Set();
+    for (const item of [...record.commits, ...record.reflog, ...record.unreachable.map(commit => ({ commit, subject: 'Unreachable object' }))]) {
+      if (seen.has(item.commit)) continue;
+      seen.add(item.commit);
+      const option = element('option', item.subject);
+      option.value = item.commit;
+      $('history-refs').append(option);
+    }
+  }
+  if (record?.files && Array.isArray(record.files)) {
+    const candidates = record.files.filter(file => ['missing', 'changed'].includes(file.state));
+    $('history-files').append(element('p', `${candidates.length} missing/changed paths; first 500 selectable below. Full comparison is in Evidence.`));
+    for (const file of candidates.slice(0, 500)) {
+      const button = element('button', `${file.state}: ${file.file}`, 'secondary history-file');
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        $('workflow-action').value = 'restore-preview';
+        $('workflow-ref').value = record.commit;
+        $('workflow-file').value = file.file;
+        resetWorkflow();
+        announce('Historical file selected. Preview its exact bytes before approving restoration.');
+      });
+      $('history-files').append(button);
+    }
+  }
+}
+$('workflow-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  try {
+    if (!selected() || busy()) throw new Error('Select a case and wait for active jobs.');
+    resetWorkflow();
+    workflowInput = {
+      repositoryId: selectedId, action: $('workflow-action').value,
+      backup: $('workflow-backup').value.trim(), workingCopy: $('workflow-working').value.trim(),
+      ref: $('workflow-ref').value.trim(), file: $('workflow-file').value.trim(),
+      branch: $('workflow-branch').value.trim(), remote: $('workflow-remote').value.trim(),
+      networkApproved: $('approve-network').checked,
+    };
+    const submitted = workflowInput;
+    await api('/api/task', submitted);
+    await refresh();
+    await watchJob();
+    const result = (await api(`/api/evidence/${selectedId}`))[submitted.action];
+    showWorkflow(result || { error: state.job.error });
+    workflowPreview = workflowInput === submitted && state.job.status === 'completed' && workflowApply[submitted.action] ? result : null;
+    $('apply-workflow').disabled = !workflowPreview;
+  } catch (error) { announce(error.message, true); }
+});
+$('apply-workflow').addEventListener('click', async () => {
+  try {
+    if (busy() || !workflowPreview || workflowInput?.repositoryId !== selectedId || !$('approve-workflow').checked) throw new Error('Approve the exact current preview for this case first.');
+    const action = workflowApply[workflowInput.action];
+    const input = { ...workflowInput, action, approved: true, planHash: workflowPreview.planHash };
+    resetWorkflow();
+    await api('/api/task', input);
+    await refresh();
+    await watchJob();
+    const records = await api(`/api/evidence/${selectedId}`);
+    const result = records[action === 'acquire-apply' ? 'preservation' : action];
+    showWorkflow(result?.baseline ? { at: result.at, backup: result.backup, workingCopy: result.workingCopy,
+      files: Object.keys(result.baseline.files).length, passed: result.passed } : result || { error: state.job.error });
+    if (action === 'acquire-apply' && result) {
+      $('backup').value = result.backup;
+      $('working-copy').value = result.workingCopy;
+      selectedStage = 2;
+      renderMedikit();
+    }
+    resetValidation();
   } catch (error) { announce(error.message, true); }
 });

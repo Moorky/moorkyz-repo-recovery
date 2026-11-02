@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { projectRoot } from '../src/recovery.mjs';
+
+test('public checkout checks explicitly report excluded private evidence without hiding ordinary broken links', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-public-check-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'scripts'));
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.mkdirSync(path.join(root, 'docs'));
+  fs.copyFileSync(path.join(projectRoot, 'scripts', 'check-project.mjs'), path.join(root, 'scripts', 'check-project.mjs'));
+  fs.copyFileSync(path.join(projectRoot, 'src', 'recovery.mjs'), path.join(root, 'src', 'recovery.mjs'));
+  fs.writeFileSync(path.join(root, 'README.md'), '# Public checkout\n\n[Private archive](docs/sources/2026-10-30/README.md)\n');
+  const run = () => spawnSync(process.execPath, [path.join(root, 'scripts', 'check-project.mjs')], { encoding: 'utf8' });
+  let result = run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /NOT RUN: private historical-source hashes/);
+  assert.match(result.stdout, /NOT RUN: 1 links/);
+  fs.appendFileSync(path.join(root, 'README.md'), '\n[Broken public guide](docs/missing.md)\n');
+  result = run();
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Broken link/);
+  fs.writeFileSync(path.join(root, 'README.md'), '# Public checkout\n');
+  fs.mkdirSync(path.join(root, 'docs', 'sources', '2026-10-30'), { recursive: true });
+  result = run();
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /without its integrity manifest/);
+});

@@ -12,14 +12,16 @@ changes with related documentation/tests. Keep project tooling separate from
 historical input; do not edit `docs/sources/2026-10-30/originals/`.
 Use disposable fixtures for all action tests.
 
-Run `node --test .\tests\recovery.test.mjs` and
-`node --test .\tests\dashboard.test.mjs` and
-`node .\scripts\check-project.mjs` for foundation changes. Record actual results
+Run `npm test` and `node .\scripts\check-project.mjs` for foundation changes.
+The suite includes disposable end-to-end acquisition/reflog/restore/validation
+fixtures. Record actual results
 in `.audits/` and distinguish self-review from human approval.
 
-This project intentionally has no Git repository yet. Do not initialize, commit,
-push or copy `.git` from another project. Once the owner provides Git, review
-publication exclusions and establish the commit workflow explicitly.
+This project now has local Git history. Do not replace/initialize its metadata,
+copy a sibling's `.git` into this project, or commit/push without an explicit
+owner request. Verified copy acquisition targets only designated external
+directories; see [guided recovery](docs/GUIDED_RECOVERY.md). Review publication
+exclusions before sharing any source or evidence.
 
 Private inventories, backups, credentials and evidence data stay outside this
 project. Any repair, deletion, history rewrite, publication or deployment needs
