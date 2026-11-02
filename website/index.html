@@ -4,40 +4,89 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Moorkyz Recovery | Repository Medikit</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
-  <script src="/app.js" defer></script>
+  <script src="/app.js" type="module"></script>
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="Moorkyz Recovery home"><span class="brand-mark">+</span><span>moorkyz<span class="brand-sub">REPO RECOVERY</span></span></a>
-    <div class="workspace-label">LOCAL WORKSPACE</div>
-    <a class="nav-item active" href="#portfolio"><span aria-hidden="true">&#9638;</span> Repository overview</a>
-    <a class="nav-item" href="#medikit"><span aria-hidden="true">+</span> Recovery medikit</a>
-    <div class="sidebar-bottom"><span class="live-dot"></span> Local only<div>No automatic repairs.<br>No data leaves this machine.</div></div>
+    <a class="brand" href="#introduction" aria-label="Moorkyz Recovery home"><img class="brand-logo" src="/favicon.svg" alt=""><span>moorkyz<span class="brand-sub">REPO RECOVERY</span></span></a>
+    <nav id="section-navigation" aria-label="Workbench sections">
+      <div class="nav-card" data-nav="introduction"><button draggable="true" aria-label="Reorder Introduction card; drag or Up/Down keys">&#10303;</button><a class="nav-item" href="#introduction"><small>01 / ADMISSION</small><strong>Introduction</strong><span>MedKit &amp; overview</span></a></div>
+      <div class="nav-card" data-nav="cases"><button draggable="true" aria-label="Reorder Cases card; drag or Up/Down keys">&#10303;</button><a class="nav-item" href="#cases"><small>02 / CASE FILES</small><strong>Cases</strong><span>Examine &amp; treat</span></a></div>
+      <div class="nav-card" data-nav="diagnostics"><button draggable="true" aria-label="Reorder Diagnostics card; drag or Up/Down keys">&#10303;</button><a class="nav-item" href="#diagnostics"><small>03 / OBSERVATIONS</small><strong>Diagnostics</strong><span>Group, compare &amp; report</span></a></div>
+    </nav>
   </aside>
   <main>
-    <header class="topbar"><span>WORKSPACE / RECOVERY CONTROL ROOM</span><span class="local-badge">127.0.0.1 <span class="live-dot"></span></span></header>
-    <section class="page-heading">
-      <div><p class="eyebrow">PRESERVE. UNDERSTAND. RECOVER.</p><h1>Your repositories.<br>A clearer way forward.</h1><p class="muted">A recovery workbench, not a reset button. Turn unknowns into evidence, one gate at a time.</p></div>
-      <div class="heading-label"><span class="cross" aria-hidden="true">+</span><span>Repository<br><strong>medikit</strong></span></div>
-    </section>
+    <header class="topbar workbench-header"><h1><span class="workspace-icon" aria-hidden="true">+</span> Recovery workbench</h1><nav aria-label="Workbench resources"><a href="/docs" target="_blank" rel="noreferrer">READ THE DOCS</a><a href="https://github.com/Moorky/moorkyz-repo-recovery" target="_blank" rel="noreferrer">PUBLIC RECOVERY REPO</a><button id="open-settings" class="secondary" aria-label="Open settings">&#9881; Settings</button></nav></header>
     <div id="notice" class="notice" role="status" aria-live="polite">Connecting to the local workbench...</div>
+    <div id="workspace-sections" class="workspace-sections">
+    <section id="introduction" class="workbench-section" aria-labelledby="introduction-title">
+    <div class="compact-hero"><div><h2 id="introduction-title">Introduction</h2><p>Your cases. Your focus. Choose a treatment and examine the evidence.</p></div><button id="reset-workspace" class="secondary reset-workspace">RESET WORKSPACE LAYOUT</button></div>
+    <div id="introduction-panels" class="workspace-sections">
+    <details id="medkit-section" class="workspace-panel" data-section="medkit" open><summary><button class="section-grip" type="button" draggable="true" aria-label="Move MedKit section; Up/Down keys or drag">&#10303;</button><span>MedKit</span><small>Procedures, scripts and setup</small></summary><div class="section-content"><div class="kit-resource-links"><button id="open-global-kit" class="secondary kit-trigger">+ Open full MedKit</button><a href="/setup" target="_blank" rel="noreferrer">Setup guide</a><a href="/download/source.zip">Download parent-project source ZIP</a><button id="shuffle-inline-kit" class="secondary">Shuffle supplies</button></div><div id="inline-kit-items" class="global-kit-items inline-kit-items"></div></div><button class="section-resizer" type="button" aria-label="Resize MedKit panel; arrow keys or drag">Resize &#8599;</button></details>
+    <details id="overview-section" class="workspace-panel" data-section="overview" open><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Overview section; Up/Down keys or drag">&#10303;</button><span>Overview</span><small id="overview-summary">Waiting for cases</small></summary><div class="section-content">
     <section class="metrics" aria-label="Portfolio summary">
-      <article><span>Directory candidates</span><strong id="total">--</strong><small>Including source-only and empty folders</small></article>
+      <article><span>Repositories / projects</span><strong id="total">--</strong><small>Independent roots only; component folders excluded</small></article>
       <article><span>Inspected</span><strong id="inspected">--</strong><small>Measured local condition</small></article>
       <article><span>Preservation verified</span><strong id="preserved">--</strong><small>Independent backup + working copy</small></article>
       <article class="metric-accent"><span>Recovery validated</span><strong id="recovered">--</strong><small>Against a known file baseline</small></article>
     </section>
-    <section id="portfolio" class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">01 / PORTFOLIO</p><h2>Repository triage</h2></div><button id="rescan" class="secondary">Rescan directory</button></div>
+    <div id="overview-chart" aria-label="All cases by current state"></div>
+    <p class="muted">Statistics cover all discovered cases, independently of the repository table's search and filters.</p></div><button class="section-resizer" type="button" aria-label="Resize Overview panel; arrow keys or drag">Resize &#8599;</button></details>
+    </div></section>
+    <section id="diagnostics" class="workbench-section" aria-labelledby="diagnostics-title">
+    <h2 id="diagnostics-title">Diagnostics</h2>
+    <div class="diagnostic-controls"><label>From (UTC)<input id="diagnostic-from" type="date"></label><label>Through (UTC, inclusive)<input id="diagnostic-through" type="date"></label><label>Group cases<select id="diagnostic-group"><option value="state">State</option><option value="owner">Owner</option><option value="priority">Priority</option></select></label><button id="download-diagnostics" class="secondary">Download PDF</button></div>
+    <p id="diagnostic-summary" class="muted" role="status">Waiting for saved evidence.</p><div id="diagnostic-groups"></div>
+    <p class="muted">Matches any saved examination or procedure timestamp; no dates means all time. Unknown/invalid event times are excluded from bounded ranges. Lifecycle values describe the included cases now, not reconstructed historical states.</p>
+    <div id="diagnostics-panels" class="workspace-sections">
+    <details class="workspace-panel" data-section="estimates" open><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Estimates section; Up/Down keys or drag">&#10303;</button><span>Estimates &amp; evidence</span><small id="estimates-summary">Waiting for evidence</small></summary><div class="section-content"><label>Explore statistic<select id="stat-field"><option value="condition">Current condition</option><option value="quality">Relational optimal recovery</option><option value="recovery">Recovery in relation to state</option><option value="confidence">Confidence</option></select></label><div id="estimate-statistics"></div><p class="muted">Only finite, non-stale saved estimates are averaged. Unknown is not zero; confidence is not a probability. Relational quality and derived recovery may exceed 100%.</p></div><button class="section-resizer" type="button" aria-label="Resize Estimates panel; arrow keys or drag">Resize &#8599;</button></details>
+    <details class="workspace-panel" data-section="procedures"><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Procedures section; Up/Down keys or drag">&#10303;</button><span>Procedure performance</span><small id="procedures-summary">Waiting for procedures</small></summary><div class="section-content"><label>Explore procedure<select id="stat-procedure"><option value="">All procedures</option></select></label><div id="procedure-statistics"></div><p class="muted">Helping factors are reviewed subjective ratings, not success probabilities or universal treatment rankings.</p></div><button class="section-resizer" type="button" aria-label="Resize Procedures panel; arrow keys or drag">Resize &#8599;</button></details>
+    <details class="workspace-panel" data-section="lifecycle"><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Lifecycle section; Up/Down keys or drag">&#10303;</button><span>Lifecycle &amp; priorities</span><small id="lifecycle-summary">Waiting for cases</small></summary><div class="section-content" id="lifecycle-statistics"></div><button class="section-resizer" type="button" aria-label="Resize Lifecycle panel; arrow keys or drag">Resize &#8599;</button></details>
+    </div></section>
+    <section id="cases" class="workbench-section" aria-labelledby="cases-title"><h2 id="cases-title">Cases</h2><div id="cases-panels" class="workspace-sections">
+    <details class="workspace-panel" data-section="cases" open><summary><button class="section-grip" type="button" draggable="true" aria-label="Move Repository cases section; Up/Down keys or drag">&#10303;</button><span>Repository cases</span><small>Examine, compare and treat</small></summary><div class="section-content">
+    <section id="portfolio" class="panel" aria-labelledby="list-title">
+      <div class="panel-heading list-heading"><h2 id="list-title">Repository cases</h2><button id="rescan" class="secondary">Rescan</button></div>
       <div class="directory-line"><span class="live-dot"></span><code id="root">Loading directory...</code><span id="scan-time"></span></div>
-      <div class="toolbar"><label class="search-label"><span>Find a repository</span><input id="search" type="search" placeholder="Search name or path"></label><label>State<select id="filter"><option value="all">All states</option><option value="pending">Awaiting inspection</option><option value="clean-checkout">Clean checkout</option><option value="uncommitted-work">Uncommitted work</option><option value="source-only">Source only / no Git</option><option value="unborn-or-damaged">Unborn / damaged Git</option><option value="inspection-errors">Inspection errors</option><option value="recovered">Recovery validated</option></select></label><label>Sort<select id="sort"><option value="name">Name</option><option value="condition">Lowest condition first</option><option value="confidence">Lowest evidence coverage first</option></select></label></div>
-      <div class="table-wrap"><table><thead><tr><th scope="col">Repository / state</th><th scope="col">Condition</th><th scope="col">Potential quality</th><th scope="col">Recovery</th><th scope="col">Confidence</th><th scope="col"><span class="sr-only">Open medikit</span></th></tr></thead><tbody id="repositories"></tbody></table></div>
-      <p id="empty" class="empty" hidden>No directories match this view.</p>
-      <div class="table-footer"><span><span class="legend-dot estimate"></span> Estimate &nbsp; <span class="legend-dot final"></span> Measured final &nbsp; <span class="legend-dot locked"></span> Gated</span><span>Scores / 100 &middot; rubric-based, never a loss percentage</span></div>
+      <div class="toolbar list-toolbar">
+        <div class="smart-search"><label for="search" class="sr-only">Smart case search</label><input id="search" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-suggestions" placeholder="Search cases… try state:source-only or a file name" autocomplete="off"><div id="search-suggestions" role="listbox" aria-label="Matching cases" hidden></div></div>
+        <label class="sort-label"><span class="sr-only">Sort cases</span><select id="sort" aria-label="Sort cases"><option value="name">Name A–Z</option><option value="condition">Lowest condition</option><option value="confidence">Lowest confidence</option><option value="updated">Recently updated</option><option value="manual">My row order</option></select></label>
+        <button id="toggle-filters" class="secondary filter-toggle" aria-expanded="false" aria-controls="filter-panel"><span aria-hidden="true">&#9776;</span> Filters <span id="filter-count"></span></button>
+      </div>
+      <div id="filter-panel" class="filter-panel" hidden>
+        <label><span aria-hidden="true">&#9673;</span> State<select id="filter"><option value="all">All states</option><option value="awaiting-examination">Awaiting examination</option><option value="clean-checkout">Clean checkout</option><option value="uncommitted-work">Uncommitted work</option><option value="source-only">Source only / no Git</option><option value="unborn-or-damaged">Unborn / damaged Git</option><option value="inspection-errors">Inspection errors</option><option value="delivered">Delivered</option><option value="dismissed">Dismissed</option><option value="recovered">Recovery validated</option></select></label>
+        <label><span aria-hidden="true">&#9873;</span> Priority<select id="priority-filter"><option value="all">All priorities</option><option>unassigned</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select></label>
+        <label><span aria-hidden="true">&#9734;</span> Procedures<select id="rated-filter"><option value="all">All procedures</option><option value="rated">Has reviewed ratings</option><option value="unrated">No reviewed ratings</option></select></label>
+        <label class="checkbox"><input id="target-filter" type="checkbox"> Focused targets only</label>
+        <button id="reset-filters" class="secondary">Clear filters</button>
+      </div>
+      <div class="list-options"><p id="list-count" role="status" aria-live="polite">Loading cases...</p><span class="list-hint">Drag grips to arrange · Click attributes · Double-click a row to expand</span><button id="reset-layout" class="secondary">Reset table layout</button></div>
+      <div class="table-wrap"><table class="case-table"><thead><tr>
+        <th scope="col"><span class="column-tip" tabindex="0">Repository / ID<span role="tooltip">Independent project or Git root. README-only component folders are excluded. ID is local path identity, not a remote identifier.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">State / activity<span role="tooltip">Examination or case state, updated-at timestamp, unchanged-since observation. Unchanged time is based on observations, not continuous monitoring.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Stay / disposition<span role="tooltip">Total time from first discovery to delivery/dismissal or now. Delivery and dismissal are explicit decisions with a final report.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Findings / diagnosis<span role="tooltip">Findings are observations; diagnosis is the interpretation; report explains the issue and uncertainty.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Current condition<span role="tooltip">Paired potential and current estimates, 0-100%. Every estimate shows examination time. Red is 0, green is 100; unknown is not zero.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Relational optimal recovery<span role="tooltip">Recovery quality ratio relative to current state. May exceed 100% (up to 1000% input limit); neither promise nor luck-independent measure.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Recovery / confidence<span role="tooltip">Recovery = condition × relational quality / 100. Confidence is shown separately, not multiplied in. Paired estimates remain subjective.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Cure / outcome<span role="tooltip">Applied or proposed fix, nonfixable issues within this scope, and final report. Missing report means not assessed, not cured.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Procedures used<span role="tooltip">Timestamped attempts and results. Helping factor 0-100% is a reviewed subjective rating with rationale, never invented from a passing command.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Best / worst procedure<span role="tooltip">Highest and lowest reviewed helping factor for this case, with timestamps. Unrated attempts are excluded; equal ratings use timestamp and ID as a stable tie-break.</span></span></th>
+        <th scope="col"><span class="column-tip" tabindex="0">Medikit<span role="tooltip">Open diagnostics, case editor, estimate cheatsheets, procedure ratings and previewable working-copy fixes.</span></span></th>
+      </tr></thead><tbody id="repositories"></tbody></table></div>
+      <p id="empty" class="empty" hidden>No cases match this search and filters.</p>
+      <div id="list-navigation" class="list-navigation"><button id="previous-page" class="secondary" hidden>Previous</button><span id="page-status"></span><button id="next-page" class="secondary" hidden>Next</button><button id="load-more" class="secondary" hidden>Show more cases</button></div>
+      <div id="load-sentinel" aria-hidden="true"></div>
+      <div class="table-footer"><span class="percent-legend">0% red &nbsp; 25% coral &nbsp; 50% amber &nbsp; 75% sage &nbsp; 100% mint</span><span>Potential + current estimate pairs &middot; subjective, timestamped &middot; SQLite local</span></div>
     </section>
-    <section id="medikit" class="panel medikit">
-      <div class="panel-heading"><div><p class="eyebrow">02 / MEDIKIT</p><h2 id="selected-name">Choose a repository</h2><p class="muted" id="selected-path">Open a medikit from the table to begin.</p></div><button id="evidence" class="secondary" disabled>View evidence</button></div>
+    </div><button class="section-resizer" type="button" aria-label="Resize Repository cases panel; arrow keys or drag">Resize &#8599;</button></details>
+    </div></section>
+    </div>
+    <dialog id="case-dialog" class="case-dialog" aria-labelledby="selected-name"><section id="medikit" class="panel medikit">
+      <div class="panel-heading"><div><p class="eyebrow">CASE / MEDIKIT</p><h2 id="selected-name">Choose a repository</h2><p class="muted" id="selected-path">Open a medikit from the table to begin.</p></div><div class="case-header-actions"><button id="evidence" class="secondary" disabled>Evidence</button><button id="close-case" class="secondary" aria-label="Close expanded case">Close</button></div></div>
+      <div id="case-notice" class="notice" role="status" aria-live="polite">Select a procedure or edit this case.</div>
       <div class="kit-grid">
         <div class="kit-steps" id="steps"></div>
         <div class="kit-detail">
@@ -56,12 +105,71 @@
             <button type="submit" class="primary" id="run-action" disabled>Choose a repository</button>
           </form>
           <p id="job-status" role="status" aria-live="polite" class="job-status">No job running.</p>
-          <div class="kit-note"><strong>What “final” means</strong><p>A measured score for the stated rubric and observation time. Recovery compares known baseline files; confidence measures completed evidence gates, not the probability of finding unknown lost work.</p></div>
+          <div class="kit-note"><strong>Evidence is not a guarantee</strong><p>Measurements inform estimates. Condition × relational quality / 100 is a scenario estimate; confidence is not a probability. Known-file retention is a separate measured fact.</p></div>
         </div>
       </div>
-    </section>
-    <footer>MOORKYZ RECOVERY <span>Private local evidence &middot; No merge, reset, push or deployment actions</span></footer>
+      <div id="case-tools" class="case-tools" hidden>
+        <div class="kit-tabs" role="tablist" aria-label="Medikit tools">
+          <button role="tab" aria-selected="true" data-tab="case-editor">Case &amp; outcomes</button>
+          <button role="tab" aria-selected="false" data-tab="estimate-editor">Paired estimates</button>
+          <button role="tab" aria-selected="false" data-tab="fix-editor">Fix scripts</button>
+          <button role="tab" aria-selected="false" data-tab="procedure-editor">Procedures used</button>
+        </div>
+        <section id="case-editor" class="tool-pane" role="tabpanel">
+          <form id="case-form" class="editor-grid">
+            <label>Owner<input name="owner"></label><label>Priority<select name="priority"><option>unassigned</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select></label>
+            <label>Focused target / intended result<input name="target" placeholder="File, bug, issue or scenario; not necessarily the entire repository"></label>
+            <label>Findings<textarea name="findings" placeholder="Observed evidence"></textarea></label>
+            <label>Diagnosis<textarea name="diagnosis" placeholder="Interpretation and uncertainty"></textarea></label>
+            <label>Issue report<textarea name="report"></textarea></label>
+            <label>The cure / fix<textarea name="cure"></textarea></label>
+            <label>Nonfixable issues<textarea name="nonfixable" placeholder="Within this scope; explain why"></textarea></label>
+            <label>Final report<textarea name="finalReport" placeholder="Important results, residual risks and handoff"></textarea></label>
+            <button class="primary" type="submit">Save case to SQLite</button>
+          </form>
+          <div class="disposition-buttons"><button id="deliver" class="secondary">Mark delivered</button><button id="dismiss" class="secondary">Dismiss case</button></div>
+        </section>
+        <section id="estimate-editor" class="tool-pane" role="tabpanel" hidden>
+          <div class="cheatsheet"><h3>Estimate cheatsheet</h3><p><strong>Condition:</strong> local structure (50 points) + successful Git observations (50). Unknown Git errors remain unknown. <strong>Relational recovery:</strong> reviewer-chosen value against a stated target; 100% means a 1× ratio, not certainty. <strong>Recovery:</strong> condition × ratio / 100. Example: 50% × 100% = 50%; 50% × 150% = 75%. <strong>Confidence:</strong> evidence coverage informs reviewer judgement; never multiply it into the recovery formula.</p><p>Automatic defaults: static root rubric for potential; executed checks for current quality; 20 points per completed evidence gate for confidence. Reviewer overrides need rationale. Estimates remain estimates, including at 100%.</p></div>
+          <form id="estimate-form" class="editor-grid">
+            <label>Estimate pair<select name="pair"><option value="potential">Potential estimate</option><option value="current">Current / real estimate</option></select></label>
+            <label>Current condition (%)<input name="condition" type="number" min="0" max="100" step=".01" required></label>
+            <label>Relational optimal recovery (%)<input name="quality" type="number" min="0" max="1000" step=".01" required></label>
+            <label>Confidence (%)<input name="confidence" type="number" min="0" max="100" step=".01" required></label>
+            <label class="wide">Target, rationale &amp; evidence<textarea name="rationale" required></textarea></label>
+            <button class="primary" type="submit">Save reviewed estimate</button>
+          </form>
+        </section>
+        <section id="fix-editor" class="tool-pane" role="tabpanel" hidden>
+          <p class="warning">Actual changes are restricted to the verified disposable working copy. Original and untouched backup are never overwritten. Preview first, approve exact bytes, then rerun integrity and quality.</p>
+          <form id="fix-form" class="editor-grid">
+            <label>Remedy<select id="remedy" name="remedy"></select></label>
+            <label>Relative file path<input name="file" placeholder="docs\guide.md" required></label>
+            <label>Old Markdown target<input name="oldTarget" placeholder="old-guide.md"></label>
+            <label>New Markdown target<input name="newTarget" placeholder="guide.md"></label>
+            <button type="submit" class="secondary">Preview fix</button>
+          </form>
+          <pre id="fix-preview">No preview yet.</pre>
+          <label class="checkbox"><input type="checkbox" id="approve-fix"> I approve this exact preview on the disposable working copy.</label>
+          <button id="apply-fix" class="primary" disabled>Apply reviewed fix</button>
+        </section>
+        <section id="procedure-editor" class="tool-pane" role="tabpanel" hidden>
+          <p class="muted">Every procedure attempt is recorded with its time and outcome. Helping factors remain unassessed until reviewed.</p>
+          <div id="procedure-list"></div>
+          <form id="procedure-form" class="editor-grid">
+            <label>Procedure<select name="procedureId" id="procedure-select"></select></label>
+            <label>Helping factor (%)<input name="helpingFactor" type="number" min="0" max="100" step=".01" required></label>
+            <label class="wide">Helping-factor rationale<textarea name="rationale" required></textarea></label>
+            <button type="submit" class="primary">Rate procedure</button>
+          </form>
+        </section>
+      </div>
+    </section></dialog>
+    <footer class="site-footer"><a class="site-footer__note" href="https://moorkyz.com" target="_blank" rel="noreferrer" aria-label="Made with Moorkyz — visit moorkyz.com"><span>made /w</span><svg class="site-footer__logo" viewBox="0 0 512 512" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path fill="currentColor" stroke="#000" d="M40 50c7 5 22 21 29 28l42 40 24 24 64 62c9 9 23 20 30 30l-24 25-19 18-24-23-34-32-22-21v120l1 8 9 8 20 13 41 28 60 41c-3 7-19 19-26 25-3 2-8 7-11 7l-10-5-22-13-77-45-36-21c-12-7-15-6-15-17V50Zm431 0c2 5 1 22 1 28v272c0 11-3 10-15 17l-36 21-77 45-22 13-10 5c-3 0-8-5-11-7-7-6-23-18-26-25l60-41 41-28 20-13 9-8 1-8V201c-6 4-13 12-19 18l-11 10-16 16-35 33-17 17-12 11-28 27c-2 2-9 10-12 10s-11-8-13-10l-31-31 35-35 31-29 24-24 9-8 24-24 10-9 23-23L471 50Z"/></svg><span>&copy; <span id="footer-year"></span></span><span>Moorkyz</span></a></footer>
   </main>
   <dialog id="evidence-dialog"><div class="panel-heading"><h2>Recorded evidence</h2><button id="close-dialog" class="secondary">Close</button></div><p class="warning">Private local paths and command output. Review before sharing.</p><pre id="evidence-content"></pre></dialog>
+  <dialog id="attribute-dialog" aria-labelledby="attribute-title"><div class="panel-heading"><h2 id="attribute-title">Attribute details</h2><button id="close-attribute" class="secondary">Close</button></div><p id="attribute-description" class="muted"></p><pre id="attribute-value"></pre><p id="attribute-status" role="status" aria-live="polite"></p><div class="attribute-actions"><button id="refresh-attribute" class="secondary">Refresh saved case data</button><button id="examine-attribute" class="secondary">Re-examine case (read-only)</button><button id="attribute-open-case" class="primary">Open full case</button></div><p class="warning">Re-examination invalidates downstream evidence. No fixes or product scripts run from this attribute panel.</p></dialog>
+  <dialog id="global-kit" class="global-kit" aria-labelledby="global-kit-title"><div class="panel-heading"><h2 id="global-kit-title"><span aria-hidden="true">+</span> Recovery MedKit</h2><button id="close-global-kit" class="secondary">Close</button></div><p class="muted">Explore your supplies before selecting a case. Cards rotate each time; opening a guide does not execute a procedure.</p><div class="kit-resource-links"><a href="/setup" target="_blank" rel="noreferrer">Setup guide</a><a href="/docs" target="_blank" rel="noreferrer">All procedure docs</a><a href="/download/source.zip">Download parent-project source ZIP</a><button id="shuffle-kit" class="secondary">Shuffle supplies</button></div><div id="global-kit-items" class="global-kit-items"></div><p class="warning">The source download excludes Git metadata, private originals, SQLite evidence, audits, hidden secret files and generated/runtime directories. Review source content before sharing; this is not a secret scan, forensic backup or full Git-history export.</p></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="panel-heading"><h2 id="settings-title">Settings</h2><button id="close-settings" class="secondary">Close</button></div><div class="settings-fields"><label>Repository browsing<select id="list-mode"><option value="continuous">Continuous</option><option value="pages">Pages</option></select></label><label>Cases per batch<select id="page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></label></div><p class="muted">Settings and panel layout are saved in this browser's localStorage. No cookies. This workbench uses English only.</p><button id="settings-reset" class="secondary reset-workspace">RESET WORKSPACE LAYOUT</button></dialog>
 </body>
 </html>

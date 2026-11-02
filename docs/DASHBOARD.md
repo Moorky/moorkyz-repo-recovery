@@ -1,125 +1,342 @@
-# Dashboard and medikit
+# Dashboard, estimates and medikit
 
-## Run
+## Run locally
 
 ```powershell
 node .\src\dashboard\server.mjs --root "C:\Users\marvi\source\repos" --port 4317
 ```
 
-Open http://127.0.0.1:4317, or launch [DASHBOARD.cmd](../DASHBOARD.cmd).
-Node 22+ and Git are required. There are no external dependencies, CDN assets,
-frontend compilation or automatic installations.
+Open http://127.0.0.1:4317 or use [DASHBOARD.cmd](../DASHBOARD.cmd).
+Node.js **22.13+** is required for built-in SQLite; Node 24 LTS is recommended.
+There are no external dependencies, CDN assets, frontend build or automatic installs.
 
-The root is chosen at server startup, not accepted from an arbitrary HTTP path.
-Discovery lists all non-hidden immediate directories except common dependency,
-data and build folders, then one level deeper where a recognized project
-marker exists. Empty folders and folders without Git are included as candidates,
-not falsely claimed to be Git repositories. Links/junctions are not followed.
-Enumeration/manifest errors are explicit.
+Private state is stored in `recovery.sqlite` (SQLite WAL) under
+`%USERPROFILE%\.moorkyz-recovery\dashboard`. Use `--data <external-directory>`
+for another workspace. State and evidence are committed transactionally; tables
+include workspace, repositories, events, evidence and procedures. Existing
+`dashboard-state.json` is imported once, if its root matches; the original JSON
+is preserved unchanged. Never publish databases or their WAL/SHM companions.
 
-Private state is stored in `%USERPROFILE%\.moorkyz-recovery\dashboard`.
-Pass `--data <external-directory>` for another root; existing state must match
-that root. A new session restores recorded evidence with observation times.
-Rescan resets gates deliberately; rerunning a stage invalidates it and all later
-stages, even if the rerun fails. Evidence is not a live-monitoring guarantee:
-rescan/re-inspect after changes. External links/secrets are not automatically checked.
+## What is a repository entry?
 
-## Five medikit stages
+Directory names and README files alone do not establish independent repositories.
+Discovery recognizes `.git`, `package.json`, `pyproject.toml`, `Cargo.toml` and
+`PROJECT_MANIFEST.json`. At a portfolio root it lists immediate independent
+projects. Under an existing project it lists only independent Git roots, not its
+docs, tests, packages or app directories. One further level detects projects
+inside grouping folders and nested Git roots. Links/junctions and common
+dependency/data/build directories are excluded.
 
-| Order | Action | Evidence / prerequisite |
-|---|---|---|
-| 1 | Inspect condition | Root rubric, Git root/HEAD/status/refs/worktrees; no repair or product execution |
-| 2 | Verify preservation | Existing independent untouched backup and disposable working copy; complete baseline bytes and directories match original |
-| 3 | Object integrity | Non-writing `git fsck --full --no-reflogs --unreachable --no-progress` on verified working copy; source-only Git is N/A |
-| 4 | Quality checks | Passing integrity; explicit Node execution approval or eligible documentation-only profile |
-| 5 | Validate recovery baseline | Passing checks, unchanged source/backup, unchanged candidate since quality, final Git integrity |
+A source-only project with a manifest is explicitly labeled source-only. An
+empty or unmarked directory is excluded, not called a broken repository. The
+scanner is bounded, not a complete drive crawl; deeper or unmarked real projects
+need an explicit project identity marker or separate investigation.
 
-Full preservation hashes **all** regular files, including `.git`, ignored files,
-media and installed dependencies. It streams file contents in 1 MiB chunks but
-can be slow and memory-intensive for very large path inventories. No files are
-copied or deleted. Quiesce other writers; linked worktrees/external Git metadata
-need separate acquisition and cannot be certified here. Backup and working copy
-must be independent and outside scanned/project/state directories.
+IDs identify normalized local paths, not GitHub IDs or repository content.
 
-Stage 4 supports `package.json` scripts named `test`, `lint`, `build`, `typecheck`.
-It runs every declared member of that set; **test is required** for Node final
-quality. No package-manager inference or dependency installation is attempted.
-Scripts execute with npm and `CI=true`, two-minute command timeouts and an 8 MiB
-output cap. Errors/timeouts are saved as failed measurements. Scripts can create
-side effects and child processes; this is not a sandbox or process supervisor.
+## Layout and lifecycle
 
-The documentation-only profile checks Markdown local-file links, excludes
-archived `sources`, requires at least one Markdown file, and is rejected for
-projects with `package.json` or recognized source directories. It does not test
-anchors, external references, prose quality or product behavior.
+The top-level sections are **Introduction**, **Cases** and **Diagnostics**.
+Introduction contains the compact hero, inline MedKit and whole-portfolio
+overview/state graph. Diagnostics contains estimates, procedure performance and
+lifecycle panels. All six original panels retain accordion, resize and reorder
+preferences; panel movement stays within its parent section. Old saved layouts
+migrate without losing sizes/open states. Sidebar hospital-style case cards
+use the local DM Mono font and a local Moorkyz/medical SVG motif; the motif makes
+no trademark or healthcare claim. The linked footer and its timing are unchanged.
+Drag sidebar grips or use Up/Down keys to reorder cards; `navOrder` is persisted
+in the existing workspace preference key. Reset restores default card/panel order.
 
-Jobs run one at a time in a worker so the HTTP server remains responsive.
-API/job failures are visible; scores unlock only after evidence is saved.
-There is no automatic repair queue, history integration or remote completeness scan.
+Diagnostics dates are UTC calendar days: start inclusive, through date inclusive
+(implemented as the next midnight exclusive). A case matches if its saved
+examination or any saved procedure timestamp is in range. Discovery, first-seen
+and updated times do not substitute for an examination. Unknown/invalid times
+are excluded whenever either bound is set; all-time includes them explicitly.
+Cases group once by current state, owner or priority (missing values unassigned).
+Only in-range procedures contribute to bounded procedure aggregates; estimates
+require an in-range saved examination. Lifecycle values describe the included
+cases now, not reconstructed historical states. Table filters do not alter this
+view. Date/group controls are session-only and are not saved with case data.
 
-## Exact score contract (0-100)
+Download PDF generates an actual PDF 1.4 browser Blob using built-in Helvetica,
+escaped ASCII text, page objects, stream lengths and a cross-reference table.
+It summarizes filters, group counts and case names/procedure counts, not full
+private evidence. Non-ASCII characters become `?`; lines are limited to 100
+characters and reports to 1000 lines (truncation explicitly indicated). Narrow
+filters for larger portfolios. Nothing is uploaded; review before sharing.
+Invalid date ranges disable download and report an error.
 
-These are **rubric scores**, not objective product-quality ratings, loss
-percentages or probabilities. “Final” means measured against this contract at
-the recorded time. Tool/check failure is not replaced by a guessed success.
+The [AI science MVP TODO](AI_SCIENCE_TODO.md) records deferred environment,
+controlled-variant, report/context/quota and independent actual-run model
+evaluation work. The dashboard does not generate AI benchmark scores.
 
-### Static potential rubric
+The horizontally scrollable table groups related fields inside each cell:
 
-| Measured root signal | Points |
+- Repository name, local Repo_ID, owner and priority.
+- State, updated at, unchanged since and unchanged duration.
+- Total stay, delivered at and dismissed at.
+- Findings (observations), diagnosis (interpretation), issue report.
+- Paired **potential / current** estimates for condition, relational optimal
+  recovery, and derived recovery with confidence.
+- Cure, nonfixable issues within scope and final report.
+- Procedures used, timestamp, outcome and helping factor.
+- Medikit entrypoint.
+
+Every column has a styled hover/focus tooltip. Dates use local time,
+`yyyy-mm-dd hh:mm:ss`; estimate timestamps identify their examination. Duration
+uses days/hours/minutes. All estimates use a continuous site palette:
+0 red, 25 coral, 50 amber, 75 sage, 100 mint. Relational values above 100 remain
+numerically visible; their color saturates at green. Unknown is `--`, not zero.
+
+First seen persists across rescans/restarts. Total stay runs from first seen to
+delivery/dismissal or now. Unchanged time starts at a new observation fingerprint
+or case mutation, not every repeated identical examination. This is observation
+history, **not continuous filesystem monitoring**. A case change reopens disposition.
+Delivery requires validated recovery and a final report. Dismissal requires a
+final report but does not mean an issue was fixed.
+
+The list is a compact panel, with a small column-style heading. Smart search
+supports fuzzy terms and explicit `id:`, `name:`, `path:`, `state:`, `owner:`,
+`priority:`, `target:`, `findings:`, `diagnosis:` and `report:` terms. Terms
+combine with AND; quoted text is accepted. Matching cases appear as keyboard-
+accessible suggestions (arrows, Enter, Escape). Choosing a suggestion narrows
+to its local ID. Search text is not persisted.
+
+Sorting sits immediately to the right of search, followed by an icon-labelled
+Filters button that expands state/priority/rating/target filters. Active filters
+are counted even while the panel is collapsed.
+
+The list defaults to **Continuous** browsing: the first batch renders, then
+the next batch appears when the bottom sentinel approaches the viewport. A
+Show more button is available too. **Pages** switches to Previous/Next controls.
+Batch sizes are 10, 20 or 50. Search/filter/sort changes reset the list window.
+The current snapshot is fetched once; incremental browsing renders more rows
+locally rather than claiming server-side pagination.
+
+View mode, batch size, sorting, filters and filter-panel expansion are saved in
+browser `localStorage` under `moorkyz-recovery.list.v1` and restored on reload.
+No cookies are read or written. Storage failures are reported; defaults apply
+for the session if saved settings cannot be read. This does not replace SQLite
+case persistence. Browser preferences are per origin, so another port has its
+own settings.
+
+Double-click a row, focus it and press Enter/Space, or use its Medikit button
+to open a floating case dialog. Escape/Close dismiss it and return focus to the
+row. There is no bottom-page medikit panel; the dialog retains all examinations,
+case editors and approved fix scripts. Reduced-motion settings disable opening
+animation. Closing a panel does not cancel a running procedure.
+
+### Visible interaction handles
+
+Row and column grips are visible from the beginning. Drag a row grip onto a
+row to place it before that row; this switches sorting to **My row order**.
+Drag a column grip onto a header to reorder headers and their corresponding
+cells together. Focus a row grip and use Up/Down, or a column grip and use
+Left/Right, for keyboard alternatives. Drag/drop only accepts a drag started
+inside this workbench; it does not import arbitrary external data.
+
+Column edge handles resize from 100 to 600px; focused edge handles use
+Left/Right in 20px steps. Row order, column order and widths persist in
+localStorage. Reset layout restores defaults without touching cases or evidence.
+Sorting by a measured attribute temporarily changes the view, not stored case data.
+
+Attributes are click targets with hover/focus hints. Their detail dialog shows
+the relevant identity, lifecycle, notes, estimates or procedure evidence. Refresh
+saved case data only reads SQLite. **Re-examine case (read-only)** explicitly
+runs examination for that one case and invalidates downstream gates; it does
+not execute product tests, fixes or arbitrary code. Opening details alone never
+starts a procedure.
+
+### Global MedKit, docs and parent-source download
+
+The top-left workbench icon/title and top-right READ THE DOCS, PUBLIC RECOVERY
+REPO and Settings button are always visible. A very compact introduction leads
+straight into the inline MedKit and statistics, without an About/landing page.
+The global MedKit can be opened before any case is selected; it shows shuffled
+cards for all nine supported procedures. Cards link to dedicated local guides,
+actual script source, setup and the complete procedure handbook. Shuffling
+changes presentation only; it does not select or execute random procedures.
+
+`/docs`, `/setup`, `/guide/<known-id>` and `/procedure-source/<known-id>` are
+fixed local resources. The source view exposes only catalogued script paths,
+never arbitrary filesystem paths.
+
+`/download/source.zip` exports the shareable **parent recovery project** source:
+root documentation/config/license, src, scripts, tests, website and curated docs.
+It excludes `.git`, private source originals, audits, SQLite/runtime data,
+dependencies, links/junctions and hidden secret files. Limits are 8 MiB per file,
+32 MiB total and 4096 files. Review content before sharing: path exclusions are
+not a secret scanner. This is a source snapshot, **not full Git history or a
+forensic recovery backup**, and it never downloads another case's repository.
+
+### Focusable statistics workspace
+
+The inline MedKit presents three shuffled supplies and opens all nine in its full
+panel. Setup and source-download links live with the supplies, not in the header.
+Below it, independent accordions expose overview, paired estimates, procedure
+performance, lifecycle/priorities and repository cases. All four estimate means
+are visible in potential/current pairs; clicking one selects its distribution.
+Expanded content includes exact distribution bins, ranges, assessed/unknown/stale
+counts, procedure outcomes, best/worst reviewed factors, timestamped attempt
+history, dispositions, target counts and observed stay/unchanged durations.
+
+Statistics use **all discovered cases**, independent of the table's filters.
+Only finite non-stale estimates contribute to means; zero is retained, unknown
+and stale are separate, and above-100 ratios remain above 100. Procedure filters
+never infer ratings from command success. These are saved-evidence aggregates,
+not predictive AI analytics or invented tests/scenarios.
+
+Drag a section's visible grip onto another section or use its Up/Down keys.
+Resize an open panel with its labelled handle or arrow keys (5 percentage points
+of width / 40px height). Widths stay between 40–100% and heights between
+220–1200px; narrow screens use full-width panels. Unresized accordions grow
+naturally on expansion; explicitly resized panels scroll their larger content.
+Order, sizes, accordion states and selected statistic/procedure views persist
+under `moorkyz-recovery.workspace.v1`.
+The prominent **RESET WORKSPACE LAYOUT** restores section defaults and table
+layout without changing evidence, filters or browsing settings.
+
+Settings contains the existing continuous/pages mode and batch size. All settings
+use localStorage; the interface is English-only, with no bilingual/language toggle.
+
+The linked footer follows moorkyz.com's `made /w` mark, year and Moorkyz line,
+fixed scrim, fading hairline, DM Mono and glint. The deployed site's timing was
+verified: 900ms fade after 400ms, then one 2.4s glint after 1.5s (not an invented
+repeating interval). Reduced motion disables both. It links to moorkyz.com;
+there are no Impressum/legal links. The bundled DM Mono font and its OFL license
+are included in the ZIP as explicitly allowlisted assets and require no runtime
+Google/font requests.
+
+Best/worst procedures are the maximum/minimum **reviewed** helping factors.
+Unrated attempts do not count as zero; a sole rated procedure is both best and
+worst. Ties use timestamp then local procedure ID for stable ordering. The
+column shows names, factors and procedure timestamps, never inferred efficacy.
+
+Case, outcome and estimate editors live in the floating medikit. Owner, priority and
+target are included as additional useful fields. Further suggested columns:
+canonical/remote identity, last successful backup, last examination/job, reviewer,
+blocking prerequisite, next action and rollback location. Sensitive details
+should remain in private case evidence rather than the overview.
+
+A focused target may be a file, bug, issue or scenario. It is searchable/filterable
+and file fixes already work at that smaller scope. This does not create a separate
+subcase or rebase whole-repository scores onto a file. Cross-project AI analytics,
+training datasets and larger scenario/statistics tooling belong to the later
+flagship, not this local recovery workbench.
+
+## Estimate cheatsheet
+
+All displayed potential/current values remain estimates. Measurements inform
+them but do not turn 100% confidence into certainty. They need a target, evidence
+scope and rationale. Reviewer overrides are saved with timestamps and history.
+Re-examination marks old reviewer estimates stale; a fix clears those overrides.
+
+### Automatic starting rubric
+
+| Root signal | Points |
 |---|---:|
 | README.md | 20 |
-| Recognized source directory or docs directory | 25 |
-| Test directory or declared test script | 25 |
+| Recognized source directory or docs | 25 |
+| Tests directory or declared test script | 25 |
 | CONTRIBUTING.md or AGENTS.md | 15 |
 | SECURITY.md | 15 |
 
-### Condition
-
-Before inspection: heuristic estimate 0 for empty, 50 for a Git marker, 25 for
-source-only. It is explicitly not a diagnosis.
-
-After successful inspection:
+**Condition:** after examination,
 `round(static rubric / 2 + successful Git queries / 5 * 50)`.
-No Git means zero Git points, not manufactured history. Any failed Git query
-blocks a final condition number. Unborn/damaged state is shown with raw evidence;
-uncommitted work is a caution, not proof of corruption.
+Source-only gets zero Git points; failed Git queries leave condition unknown.
+Uncommitted work is not permission to reset.
 
-### Potential quality / measured quality
+**Potential relational recovery:** static rubric is a conservative automatic
+starting estimate only, not an objective prediction.
 
-Before inspection: unavailable. After inspection: static rubric as an estimate.
-After approved validation:
-`round(static rubric on working copy * 0.30 + passing checks / executed checks * 70)`.
+**Current relational recovery:** after supported quality checks,
+`round(static rubric * 0.30 + passing checks / executed checks * 70)`.
+Before those checks it is unknown. A failed check produces a lower estimate and
+blocks recovery validation. Missing tests do not become a successful fallback.
 
-Failed checks still produce a **measured low final quality score**, but prevent
-recovery validation. Missing test command, unsupported profile or inaccessible
-input produces no final score. A passing command does not prove adequate test
-coverage or absence of vulnerabilities. Scope lists the actual checks.
+**Derived recovery:** `condition * relational recovery / 100`.
+For example, 50% condition times 100% quality = 50%; 50% times 150% = 75%.
+Confidence is **not multiplied in**. The product is a subjective scenario metric,
+not measured lost/recovered code. It is not added to other stats to total 100.
 
-### Recovery
+**Confidence:** automatic evidence coverage starts at 20 points for each of
+examination, preservation, passing integrity, passing quality and baseline
+validation. Reviewer judgement may override it with rationale; even 100 means
+neither a guarantee nor a probability.
 
-Unavailable until stage 5:
-`round(exactly retained original-baseline files / original-baseline files * 100)`.
+Condition, confidence and helping-factor inputs accept 0-100%. Relational
+quality accepts 0-1000% as a practical UI/input bound, not a theoretical maximum.
+No number is invented before examination. Potential/current values are shown
+in paired grids within the same column with examination timestamps and labels.
 
-Only byte-identical original files count as retained. New files are not losses;
-changed baseline files reduce this retention metric even when intentional.
-The dashboard does not assess missing code that was never in the supplied
-baseline. A 100 score is not a recovered-history certificate.
+**Measured baseline retention** remains separate recorded evidence:
+`exact byte-identical original files retained / original files * 100`.
+Changed baseline files reduce that measurement even if intentionally improved;
+new files are not losses. This does not estimate unknown lost history.
 
-### Confidence
+## Ordered examination and fix procedures
 
-Evidence coverage, not probability: 20 points each for inspection, verified
-preservation, passing integrity, passing quality and completed baseline validation.
-Provisional until all five stages; then 100 final coverage. It can be 100 with
-a recovery-retention score below 100 because these measure different things.
+1. Inspect local structure/Git metadata without product execution.
+2. Verify an untouched backup and independent disposable working copy.
+3. Run non-writing Git fsck on the working copy (source-only Git is N/A).
+4. Approve/run declared npm test/lint/build/typecheck, or eligible docs-only links.
+5. Validate baseline retention, backup/original stability and candidate freshness.
 
-## Verification
+Full preservation hashes all regular files, including ignored files, dependencies
+and `.git`; it can take substantial time. Linked worktrees/external Git metadata
+need separate acquisition. Copies must remain outside original/project/scan/state
+roots. Node checks require a real test script and explicit code-execution approval.
+No automatic package installations. Commands have two-minute timeouts and 8 MiB
+output limits; they are not sandboxed and may spawn other processes.
+
+### Actual fix scripts
+
+The Fix scripts tab offers:
+
+- **Restore baseline file:** copy one preserved file from untouched backup into
+  the working copy. Never modify Git metadata or the original.
+- **Normalize text:** convert CRLF/CR to LF in one supported UTF-8 text file
+  below 2 MiB; binary files are rejected.
+- **Repair Markdown link:** replace an exact local file link with an existing
+  target inside the working copy.
+
+Every fix requires a preview of file path, byte counts and hashes, then explicit
+approval of the current preview hash. Changed inputs invalidate preview approval.
+Applied fixes clear integrity/quality/recovery gates and reviewed estimates;
+run the checks again. Fixes never automatically deliver a case.
+
+### Procedures used and helping factor
+
+Each examination, check, fix and failed attempt records name, outcome and time.
+Previews are recorded evidence, not counted as an applied helping procedure.
+Helping factor starts unassessed (`--`). Rate 0-100% with rationale in the
+Procedures used tab, after examining what the procedure actually helped:
+
+- 0: no observed help or harm; explain outcome.
+- 25: small clarification or limited symptom improvement.
+- 50: meaningful partial progress with unresolved core issues.
+- 75: substantial progress, residual issues remain.
+- 100: fully helped the **stated scoped target**, not universal recovery.
+
+These are subjective anchors, not formulas derived from exit codes. Ratings
+have their own reviewed timestamp and persistent history.
+
+## Persistence and boundaries
+
+One worker job runs at a time. Failures are visible and saved; stage reruns
+invalidate downstream evidence even on failure. Rescan resets gates but preserves
+case notes, lifecycle and procedure history. SQLite retains evidence and reviewed
+estimates across restarts. Browser tables are not real-time monitoring guarantees.
+
+The server binds loopback only with same-origin Host/Origin/token checks.
+No remote history repair, automatic merge/reset/push/deployment or cloud upload.
+See [security boundaries](../SECURITY.md).
 
 ```powershell
 npm test
 npm run lint
 ```
 
-`npm test` runs disposable engine/API/inventory fixtures. Browser validation
-checks the real UI, filtering, gate presentation and responsive layout. The
-project's “lint” script is the existing document/source consistency checker,
-not an added third-party JavaScript linter.
+Tests use disposable repositories/copies and SQLite databases. The existing
+project consistency checker validates source hashes/local document links; it is
+not a third-party JavaScript linter, secret scanner or forensic certificate.

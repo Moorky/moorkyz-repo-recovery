@@ -10,3 +10,6 @@ coverage/
 *.bundle
 *.zip
 *.log
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

@@ -25,8 +25,11 @@ can affect access timestamps. Work on verified copies when integrity matters.
 ## Local dashboard boundary
 
 The server binds only `127.0.0.1`, rejects foreign Host/Origin values, uses
-same-origin requests with a random per-session token and serves only three
-allowlisted UI assets. Private evidence is stored outside the scan/project tree.
+same-origin API requests with a random per-session token. Static resources are
+allowlisted UI modules/styles and the bundled footer font, fixed local
+documentation/setup routes and catalogued procedure source. These read-only
+resources and the source download do not require an API token. Private evidence
+is stored outside the scan/project tree.
 Do not proxy or expose this server to a network: it is a trusted-local-user tool,
 not a multiuser authenticated service.
 
@@ -41,3 +44,35 @@ Stop the dashboard only after the current check finishes. Process timeouts are
 failures, not approval or proof that descendant processes have stopped; inspect
 any script-spawned background processes separately. No dependency installation,
 merge, reset, garbage collection, push or deployment is automated.
+
+The SQLite database, WAL/SHM files, examination logs, reviewer estimates and
+procedure ratings are private runtime evidence. Legacy JSON migration preserves
+the original report but does not sanitize it.
+
+Medikit file fixes require a fresh hash preview and explicit approval. They only
+write a selected file in the verified working copy; restore reads from the
+untouched backup. Git metadata, parent traversal, linked directories and binary
+text edits are rejected. Original and preservation backup are never fix targets.
+
+List view/filter/sort/layout settings live in localStorage only; no cookies are used.
+Search terms, case content, tokens and evidence are not stored there. Case data
+remains in the private SQLite workspace. Browser preferences are not credentials
+or authorization, and can be cleared without deleting case evidence. Manual row
+order stores opaque case IDs, not names or filesystem paths. Workspace
+preferences store section IDs, dimensions, accordion states and selected
+statistic/procedure view names, not the underlying statistics or case content.
+Sidebar order stores only fixed section IDs. Diagnostics date/group inputs are
+session-only. PDF export is generated locally in the browser without a new
+server action, token bypass, HTML rendering or external service. Saved text is
+ASCII-normalized and PDF-escaped; resource limits cap pages/lines. Export includes
+private case names and group labels: review it before sharing. Unknown timestamps
+are excluded from bounded filters, never replaced with scan time.
+
+The parent-project source ZIP excludes Git metadata, historical source originals,
+audits, dependencies, SQLite/runtime data, links and hidden nested files. It
+contains only allowlisted root files, textual source/documentation paths and
+the specifically allowlisted DM Mono font with its redistribution license and
+local favicon SVG. Other SVG/binary paths remain excluded.
+This is not a forensic backup, full Git export or secret scanner. Review allowed
+source content before sharing; fixed path exclusions cannot detect secrets
+embedded in otherwise valid source files.

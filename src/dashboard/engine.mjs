@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { containedBy, readGit } from '../recovery.mjs';
 
-const markers = ['.git', 'package.json', 'README.md', 'AGENTS.md', 'pyproject.toml', 'Cargo.toml'];
+const markers = ['.git', 'package.json', 'pyproject.toml', 'Cargo.toml', 'PROJECT_MANIFEST.json'];
 const skip = new Set(['.git', 'node_modules', '.venv', '.next', 'data', 'dist', 'build', 'bin', 'obj']);
 const checks = ['test', 'lint', 'build', 'typecheck'];
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -32,17 +32,23 @@ export function discover(root) {
     });
   }
   const rootEntries = entries(root);
-  if (rootEntries.some(entry => markers.includes(entry.name))) add(root);
+  const rootIsProject = rootEntries.some(entry => markers.includes(entry.name));
+  if (rootIsProject) add(root);
   for (const entry of rootEntries) {
     const folder = path.join(root, entry.name);
     if (entry.isSymbolicLink()) {
       skipped.push({ path: folder, reason: 'link/junction not followed' });
     } else if (entry.isDirectory() && !entry.name.startsWith('.') && !skip.has(entry.name.toLowerCase())) {
-      add(folder);
+      const children = entries(folder);
+      const childIsProject = children.some(item => markers.includes(item.name));
+      if ((!rootIsProject && childIsProject) || children.some(item => item.name === '.git')) add(folder);
+      else if (!rootIsProject) skipped.push({ path: folder, reason: 'ordinary directory; no independent project marker' });
       for (const child of entries(folder)) {
         if (!child.isDirectory() || child.name.startsWith('.') || skip.has(child.name.toLowerCase())) continue;
         const nested = path.join(folder, child.name);
-        if (entries(nested).some(item => markers.includes(item.name))) add(nested);
+        const nestedEntries = entries(nested);
+        if (nestedEntries.some(item => item.name === '.git') ||
+          (!rootIsProject && !childIsProject && nestedEntries.some(item => markers.includes(item.name)))) add(nested);
       }
     }
   }
@@ -160,7 +166,7 @@ export function preserve(source, backup, workingCopy, forbiddenRoots) {
   return { at: new Date().toISOString(), backup, workingCopy, baseline: original };
 }
 
-function ensurePreserved(source, record) {
+export function ensurePreserved(source, record) {
   for (const folder of [source, record.backup, record.workingCopy]) {
     if (fs.realpathSync(folder) !== path.resolve(folder)) throw new Error('A verified directory now resolves to a different physical path. Re-verify copies.');
   }

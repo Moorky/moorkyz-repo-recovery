@@ -18,7 +18,7 @@ or change other repositories.
 
 ## Local commands
 
-Prerequisites: Node.js 22 or newer and Git on PATH; Node.js 24 LTS is recommended
+Prerequisites: Node.js 22.13 or newer and Git on PATH; Node.js 24 LTS is recommended
 and pinned for future adoption. No npm dependencies.
 Double-click `RUN.cmd` for help, or run:
 
@@ -36,16 +36,37 @@ Double-click [DASHBOARD.cmd](DASHBOARD.cmd), or:
 node .\src\dashboard\server.mjs --root "C:\Users\marvi\source\repos"
 ```
 
-Open **http://127.0.0.1:4317**. The website lists immediate directory candidates
-and nested project roots, including empty/source-only folders. Search, filter,
-sort and open a repository's medikit. No repair or product code runs on discovery.
+Open **http://127.0.0.1:4317**. The website lists independent project/Git roots
+and excludes ordinary component folders. Search, filter,
+sort and double-click a row to open its floating case medikit. Continuous browsing
+is the default; switch to Pages if preferred. List settings persist in browser
+localStorage without cookies. No repair or product code runs on discovery.
+
+Drag row/column grips to arrange the list, resize column edges, and click
+attributes for evidence or an explicit read-only refresh. The always-visible
+MedKit opens procedure cards, docs, setup and a downloadable parent-project
+source snapshot, without requiring a selected case. A compact intro leads to the
+inline MedKit and movable/resizable statistics accordions. Settings saves
+continuous/pages browsing; the prominent reset restores section/table layout
+without touching evidence. The English-only interface uses the linked moorkyz.com
+footer and its exact fade/glint timing, with a locally bundled, OFL-licensed font.
+
+Introduction, Cases and Diagnostics organize the six panels. Sidebar case cards
+can be reordered by drag or Up/Down keys and persist with layout preferences.
+Diagnostics groups cases by state, owner or priority and filters saved examination
+and procedure timestamps using inclusive UTC dates. Unknown-time records are
+excluded from bounded ranges. Download a real, locally generated PDF summary.
+See the [AI science MVP TODO](docs/AI_SCIENCE_TODO.md) for planned experiments;
+no AI model runner or independent model scores exist yet.
 
 The five stages are inspection, preservation verification, object integrity,
-approved quality checks and recovery-baseline validation. Estimated, gated,
-blocked and final measured scores are distinguished. Read the
+approved quality checks and recovery-baseline validation. Paired potential/current
+estimates, lifecycle, findings, outcome reports and timestamped procedures are
+shown together. The medikit also offers previewable working-copy file fixes.
+Read the
 [dashboard and scoring contract](docs/DASHBOARD.md) before interpreting a score.
 
-Private evidence persists under `%USERPROFILE%\.moorkyz-recovery\dashboard`.
+Private evidence persists in SQLite under `%USERPROFILE%\.moorkyz-recovery\dashboard`.
 Use `--data <external-directory>` for another workspace and `--port <number>`
 for a different port. No dependency installation or frontend build is needed.
 
@@ -82,7 +103,8 @@ configuration are deliberately not copied.
 
 Documents have been reconciled; the dashboard provides measured local checks,
 not an automatic history-repair engine. Historical ZIP/GitHub numbers have **not**
-been reverified. Recovery scores compare a known baseline, not unknown lost work.
+been reverified. Measured retention compares a known baseline; relational recovery estimates
+use condition × recovery quality, with confidence separate.
 No automatic sibling changes, remote inspection, integration, deployment, Git
 initialization or commit are included. Copy verification is byte-baseline
 verification, not a strict forensic acquisition certificate.
