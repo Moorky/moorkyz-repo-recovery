@@ -6,6 +6,7 @@ import { isUtf8 } from 'node:buffer';
 import { readGit } from '../recovery.mjs';
 import { ensurePreserved, snapshot } from './engine.mjs';
 import { relativeFile, targetFile, readTarget, replaceFile, sha256, planHash } from './files.mjs';
+import { discoverCandidates } from './candidates.mjs';
 
 export function gitResult(folder, args, options) {
   const result = readGit(folder, args, options);
@@ -57,6 +58,7 @@ export function history(repository) {
   const unreachable = [...new Set([...objectLog.matchAll(/(?:unreachable|dangling) commit ([0-9a-f]{40,64})/g)].map(match => match[1]))];
   return {
     at: new Date().toISOString(), commits, reflog, refs, unreachable,
+    candidates: discoverCandidates(folder, { dangling: unreachable }),
     scope: 'Up to 100 log and 100 reflog entries. Unreachable commits come from the last integrity check. Reflog expiry or missing objects can prevent recovery.',
   };
 }

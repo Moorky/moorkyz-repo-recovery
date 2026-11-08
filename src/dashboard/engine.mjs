@@ -5,6 +5,7 @@ import { containedBy, readGit } from '../recovery.mjs';
 import { collectRecoveryEvidence } from './report.mjs';
 import { targetFile, planHash } from './files.mjs';
 import { checkPlan, runChecks } from './checks.mjs';
+import { checkObjects, discoverCandidates } from './candidates.mjs';
 
 const markers = ['.git', 'package.json', 'pyproject.toml', 'Cargo.toml', 'PROJECT_MANIFEST.json'];
 const skip = new Set(['.git', 'node_modules', '.venv', '.next', 'data', 'dist', 'build', 'bin', 'obj']);
@@ -150,9 +151,13 @@ export function inspect(repository) {
     commands.some(command => !good(command)) ? 'inspection-errors' :
       commands.find(command => command.args[0] === 'status').stdout ? 'uncommitted-work' : 'clean-checkout';
   const gitPoints = !hasGit ? 0 : commands.filter(good).length / commands.length * 50;
+  const linkedWorktree = hasGit && fs.statSync(path.join(repository, '.git')).isFile();
+  const objects = hasGit ? checkObjects(repository) : null;
   return {
-    at: new Date().toISOString(), measured, hasGit, commands, state,
+    at: new Date().toISOString(), measured, hasGit, linkedWorktree, commands, state,
     recoveryEvidence: hasGit ? collectRecoveryEvidence(repository) : null,
+    objects,
+    candidates: hasGit ? discoverCandidates(repository, { dangling: objects.dangling }) : null,
     conditionScore: Math.round(gitPoints + measured.staticScore / 2),
   };
 }
