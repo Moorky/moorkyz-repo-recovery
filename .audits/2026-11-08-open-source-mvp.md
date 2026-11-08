@@ -45,6 +45,8 @@
 | `assess` CLI on the demo | Exit 0; report contains scan status and ranked candidates |
 | `scripts/package.mjs` (pre-documentation tree) | 1,518,524-byte ZIP, SHA-256 `560b2204387e4d9a1e50b1d129f9d8ae876177ae454a4ed8bf09e029d568d13e`; not a release artifact |
 | `git diff --check` | PASS |
+| Clean clone of `dev @ 684397e` (no private inputs, no working-tree state) | `npm test` 87/87 PASS; `npm run lint` PASS with private-archive hashes and 2 private-report links correctly NOT RUN; `npm run smoke` PASS |
+| `scripts/package.mjs` from that clean clone | 1,517,486-byte `moorkyz-repo-recovery-0.4.0-source.zip`, SHA-256 `76bfea52fde4f13c020e4c5d5075f1d5015d13e63d74fc05d8587785bc0e5f43` (tree `684397e`; rebuild after any further commit) |
 | GitHub Actions CI | **NOT RUN**: no push authorized |
 | Linux / macOS | **NOT RUN** (Docker Desktop was not running and was not started on the shared machine) |
 | Screen reader / WCAG audit | **NOT RUN** |
