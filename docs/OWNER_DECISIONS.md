@@ -81,3 +81,21 @@ the migration lock and staged work** and review migration separately.
 This is not a claim that the Evidence application is fully ready for normal
 startup. Its source/reference repairs passed, but the root-consolidation gate
 remains an explicit blocker. See [portfolio repair results](../PORTFOLIO_REPAIR_RESULTS.md).
+
+## Open-source release roadmap decisions
+
+On 2026-11-08 the owner asked to include the
+[release roadmap](RELEASE_ROADMAP.md) in the project. Inclusion is not approval
+of its gates or permission for Git, GitHub or publication actions. These
+roadmap items still need owner answers before the related tasks can close:
+
+| Topic | Roadmap task | Current state |
+|---|---|---|
+| Release scope, supported OS/Node/Git matrix, meaning of "automatic" | R03 / G0 | 2026-11-08: owner requested a focused open-source MVP (0.4.0). Windows verified; Linux/macOS pending a first CI run. Confirm the declared matrix before release. |
+| Copyright holder and licensing | R53 | Apache-2.0 kept. The malformed appendix line was normalized to `Copyright 2026 Moorkyz` (same name as before) and `package.json` declares `Apache-2.0`. **Confirm the legal holder name.** |
+| Distribution: keep `private: true` and Node+Git quick-start, or another package | R63 | Default kept: no npm publishing. `scripts/package.mjs` builds a source ZIP + SHA-256 for a GitHub release if approved. |
+| Optional batch recovery and scheduled read-only checks | R38 / R39 | Deferred out of the MVP. |
+| Test isolation approach for any unattended validation | R36 | Default kept: no unattended execution; checks remain unsandboxed and approval-gated. |
+| Publication: push branch, run CI, merge to `master`, tag `v0.4.0`, GitHub release | R60 / R65 | Local commits only on `dev` (owner requested local commits). **Push, CI run, merge, tag and release need explicit approval.** |
+| GitHub settings: description/topics, private vulnerability reporting (linked from SECURITY.md and the issue template), branch protection | R64 | Not changed. **Owner action.** |
+| LinkedIn announcement, video, case study | R71–R73 | Not started. **Owner action.** |

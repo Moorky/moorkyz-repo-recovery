@@ -14,11 +14,15 @@ as inventory below, including physical-parent/junction checks.
 The report includes working-tree state, Git-index missing files, staged deletions
 and renames, root package version/check scripts, tracked audit/version paths,
 local branches/tags, cached remote-ref count, reachable commit count, shallow
-history, stashes and up to 250 reflog entries. A staged deletion is not an
-unstaged missing index path. Neither proves unrecoverable loss. Audit paths can
-include templates; clean status is not a completeness test.
+history, stashes and up to 250 reflog entries, plus the dashboard's scan status,
+findings, object-check result and up to ten ranked recovery candidates per
+project. A staged deletion is not an unstaged missing index path. Neither proves
+unrecoverable loss. Audit paths can include templates; clean status is not a
+completeness test.
 
-No product scripts, installs, fsck, remote requests or repairs run. JSON retains
+No product scripts, installs, remote requests or repairs run. The only object
+check is the read-only `git fsck --connectivity-only` (no `--lost-found`), skipped
+above 250,000 objects. JSON retains
 raw Git results and per-case errors. One failed inspection does not hide other
 cases: partial reports are written and the CLI exits 1 with an explicit warning.
 Unknown values are not counted as zero. Enumeration failures abort rather than
@@ -68,17 +72,53 @@ separate human-reviewed steps.
 ## Checks
 
 ```powershell
-node --test .\tests\recovery.test.mjs
-node --test .\tests\dashboard.test.mjs
-node --test .\tests\report.test.mjs
-node .\scripts\check-project.mjs
+npm test                 # every suite: node --test tests/*.test.mjs
+npm run lint             # node scripts/check-project.mjs
+npm run smoke            # node scripts/smoke.mjs
+node --test .\tests\scan.test.mjs   # one suite
 ```
 
 Tests use disposable temporary repositories only, not the sibling projects.
 They cover nested roots/worktrees, unchanged Git state, output containment,
-bad input and explicit command failures. The project checker verifies local
+bad input and explicit command failures, candidate discovery against commits the
+test itself made unreachable, the HTTP scan and guided workflow, cancellation,
+a hard process kill during a copy, and the CLI. The project checker verifies local
 Markdown file links outside the immutable originals and hashes all archived
 sources against the manifest. It does not certify external links or secrets.
+
+`tests/browser.test.mjs` drives the real UI in an installed Chromium-based browser
+(Edge or Chrome, headless) through `scripts/browser.mjs`, which speaks the DevTools
+protocol over Node's built-in WebSocket. No npm package is involved. Without a
+browser the test is reported as **skipped**, never passed. Override the executable
+with `RECOVERY_BROWSER`. On Linux CI it adds `--no-sandbox` for the local test page.
+
+`npm run smoke` creates the synthetic demo in a temporary folder, starts the
+dashboard through its CLI with a new data folder, runs one scan, checks the expected
+statuses and the first candidate, exports a case report and proves every original
+is byte-identical. It exits 1 on any failed check.
+
+## Demo, screenshots and release artifacts
+
+```powershell
+node scripts/demo.mjs ../recovery-demo                # synthetic damaged repositories (new folder)
+node scripts/screenshots.mjs C:\demo                  # regenerate docs/assets from the real UI
+node scripts/package.mjs ../release                    # existing folder outside the project
+```
+
+`demo.mjs` builds seven projects with known damage (reset-lost commit, deleted
+branch, overwritten files, deleted object, clean, no `.git`, empty folder); see the
+[quick start](QUICKSTART.md). `screenshots.mjs` runs the demo through the browser
+driver; pass a neutral work folder so no personal path appears in the images.
+`package.mjs` writes `moorkyz-repo-recovery-<version>-source.zip` (the same allowlist
+as the dashboard source download: no Git metadata, private inputs, audits, runtime
+data or secrets files) and a `.sha256` file, refusing to overwrite.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs `npm test`, `npm run lint` and `npm run smoke` on
+Windows, Ubuntu and macOS with Node 22.13.0 (declared minimum) and 24. It has
+read-only `contents` permission, pinned action commits, no secrets and no install
+step.
 
 ## Public checkout checks
 

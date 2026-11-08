@@ -24,10 +24,17 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   fs.writeFileSync(path.join(root, 'website', 'fonts', 'OFL.txt'), 'Font license');
   fs.writeFileSync(path.join(root, 'website', 'fonts', 'unapproved.ttf'), 'private');
   fs.writeFileSync(path.join(root, 'website', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  fs.mkdirSync(path.join(root, 'docs', 'assets'));
+  fs.writeFileSync(path.join(root, 'docs', 'assets', 'demo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  fs.writeFileSync(path.join(root, 'docs', 'private-capture.png'), 'private');
+  fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.github', 'workflows', 'ci.yml'), 'name: CI');
   const archive = sourceArchive(root);
   assert.equal(archive.readUInt32LE(0), 0x04034b50);
   assert.equal(archive.readUInt32LE(archive.length - 22), 0x06054b50);
-  assert.equal(archive.readUInt16LE(archive.length - 12), 6);
+  assert.equal(archive.readUInt16LE(archive.length - 12), 8);
+  assert.ok(archive.includes(Buffer.from('moorkyz-repo-recovery/docs/assets/demo.png')));
+  assert.ok(archive.includes(Buffer.from('moorkyz-repo-recovery/.github/workflows/ci.yml')));
   assert.ok(archive.includes(Buffer.from('moorkyz-repo-recovery/README.md')));
   assert.ok(archive.includes(Buffer.from('# Public guide')));
   assert.ok(archive.includes(Buffer.from('PUBLICATION_STATUS.md')));

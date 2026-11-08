@@ -2,6 +2,7 @@ import { defaults, preferenceKey, validatePreferences, procedureExtremes, select
 import { initializeWorkspace, renderWorkspace } from './workspace.mjs';
 import { initializeGuidance, renderGuidance } from './guidance.mjs';
 import { nextStep } from './guidance-model.mjs';
+import { initializeSimple, renderSimple, renderGuided } from './simple.mjs';
 
 const stages = [
   { action: 'inspect', key: 'inspection', title: 'Inspect local condition', description: 'Read root structure, declared checks and Git state. Uncommitted work is preserved, not treated as permission to reset. This unlocks a measured condition rubric and a potential-quality estimate.' },
@@ -359,6 +360,7 @@ function render() {
   const list = selectRepositories(state.repositories, $('search').value, preferences);
   currentWindow = listWindow(list, preferences, pageIndex, visibleLimit);
   renderGuidance(state, currentWindow.items);
+  renderSimple(state);
   pageIndex = currentWindow.page;
   $('repositories').replaceChildren();
   for (const repo of currentWindow.items) {
@@ -527,6 +529,7 @@ function renderMedikit() {
   const job = state.job;
   $('job-status').classList.toggle('error', job?.status === 'failed');
   $('job-status').textContent = job ? `${job.action}: ${job.status}${job.error ? ` - ${job.error}` : ''}` : 'No job running.';
+  renderGuided(repo);
 }
 async function refresh() {
   state = await api('/api/state');
@@ -549,7 +552,12 @@ async function watchJob() {
     }
     if (state.job?.status === 'failed') announce(state.job.error, true);
     else {
-      announce('Evidence saved in local SQLite. Review results and rate the procedure helping factor.');
+      const labels = { inspect: 'scan', scan: 'scan', 'acquire-preview': 'copy preview', 'acquire-apply': 'copies created and verified',
+        integrity: 'integrity check', compare: 'comparison', 'restore-preview': 'restore preview', 'restore-apply': 'file restored',
+        'quality-preview': 'check preview', quality: 'checks', recover: 'validation', history: 'history discovery' };
+      const action = labels[state.job?.action] ?? state.job?.action ?? 'job';
+      announce(document.body.dataset.mode === 'simple' ? `Finished: ${action}. The result is saved locally; nothing was changed in your original.`
+        : 'Evidence saved in local SQLite. Review results and rate the procedure helping factor.');
       if (state.job?.action === 'fix-preview') {
         const evidence = await api(`/api/evidence/${selectedId}`);
         fixPreview = evidence['fix-preview'];
@@ -685,7 +693,7 @@ $('case-dialog').addEventListener('click', event => {
 });
 $('case-dialog').addEventListener('close', () => {
   const row = document.querySelector(`tr[data-repository-id="${selectedId}"]`);
-  const card = document.querySelector(`[data-case-open="${selectedId}"]`);
+  const card = [...document.querySelectorAll(`[data-case-open="${selectedId}"]`)].find(item => item.offsetParent !== null);
   ($('detailed-case-table').hidden ? card || $('search') : row || card || $('search')).focus();
 });
 $('rescan').addEventListener('click', async () => {
@@ -697,20 +705,22 @@ $('rescan').addEventListener('click', async () => {
     announce('Directory rescanned. Scores are provisional until new evidence is collected.');
   } catch (error) { announce(error.message, true); }
 });
+async function download(route, filename) {
+  const response = await fetch(route, { headers: { 'X-Recovery-Token': token } });
+  if (!response.ok) throw new Error((await response.json()).error || `Report export failed (${response.status})`);
+  const url = URL.createObjectURL(await response.blob());
+  const link = element('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  announce('Markdown report downloaded from saved evidence. No scan or repair ran. Review private paths before sharing.');
+}
 $('download-report').addEventListener('click', async () => {
-  try {
-    const response = await fetch('/api/report.md', { headers: { 'X-Recovery-Token': token } });
-    if (!response.ok) throw new Error((await response.json()).error || `Report export failed (${response.status})`);
-    const url = URL.createObjectURL(await response.blob());
-    const link = element('a');
-    link.href = url;
-    link.download = 'recovery-assessment.md';
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    announce('Saved-evidence Markdown report downloaded. No scan or repair ran. Review before sharing.');
-  } catch (error) { announce(error.message, true); }
+  try { await download('/api/report.md', 'recovery-assessment.md'); }
+  catch (error) { announce(error.message, true); }
 });
 $('action-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -740,6 +750,7 @@ $('evidence').addEventListener('click', async () => {
 $('close-dialog').addEventListener('click', () => $('evidence-dialog').close());
 const workspaceError = initializeWorkspace({ announce, resetTable: () => $('reset-layout').click() });
 initializeGuidance(openCase);
+initializeSimple({ api, refresh, watchJob, openCase, announce, download, selected, getState: () => state });
 $('refresh-saved').addEventListener('click', async () => {
   try { await refresh(); announce('Saved evidence refreshed. No gates reset and no procedure started.'); if (busy() && !polling) await watchJob(); }
   catch (error) { announce(error.message, true); }

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # 22.13.0 is the declared minimum in package.json; 24 is the recommended LTS.
+        node: ['22.13.0', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Toolchain
+        run: |
+          node --version
+          git --version
+      # No npm dependencies exist, so there is nothing to install.
+      - name: Unit, integration and browser end-to-end tests
+        run: npm test
+      - name: Project consistency checks (links, preserved-source hashes)
+        run: npm run lint
+      - name: Fresh-checkout smoke test on the synthetic demo
+        run: npm run smoke

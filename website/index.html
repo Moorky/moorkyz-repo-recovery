@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Moorkyz Recovery | Repository Medikit</title>
+  <title>MOORKYZ Repo Recovery</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/guidance.css">
+  <link rel="stylesheet" href="/simple.css">
   <script src="/app.js" type="module"></script>
 </head>
 <body>
-  <aside class="sidebar">
+  <aside class="sidebar advanced-only">
     <a class="brand" href="#introduction" aria-label="Moorkyz Recovery home"><img class="brand-logo" src="/favicon.svg" alt=""><span>moorkyz<span class="brand-sub">REPO RECOVERY</span></span></a>
     <nav id="section-navigation" aria-label="Workbench sections">
       <div class="nav-card" data-nav="introduction"><button draggable="true" aria-label="Reorder Introduction card; drag or Up/Down keys">&#10303;</button><a class="nav-item" href="#introduction"><small>01 / ADMISSION</small><strong>Introduction</strong><span>MedKit &amp; overview</span></a></div>
@@ -19,14 +20,32 @@
     </nav>
   </aside>
   <main>
-    <header class="topbar workbench-header"><h1><span class="workspace-icon" aria-hidden="true">+</span> Recovery workbench</h1><nav aria-label="Workbench resources"><a href="/manual" target="_blank" rel="noreferrer">Step-by-step manual</a><a href="#how-to-recover">How to recover</a><button id="refresh-saved" class="secondary">Refresh saved evidence</button><button id="open-settings" class="secondary" aria-label="Open settings">&#9881; Settings</button></nav></header>
+    <header class="topbar workbench-header"><h1><span class="workspace-icon" aria-hidden="true">+</span> Recovery workbench</h1><nav aria-label="Workbench resources"><a href="/manual" target="_blank" rel="noreferrer">Step-by-step manual</a><a class="advanced-only" href="#how-to-recover">How to recover</a><button id="mode-toggle" class="secondary mode-toggle" type="button" aria-pressed="false">Advanced mode: off</button><button id="refresh-saved" class="secondary">Refresh saved evidence</button><button id="open-settings" class="secondary" aria-label="Open settings">&#9881; Settings</button></nav></header>
     <div id="notice" class="notice" role="status" aria-live="polite">Connecting to the local workbench...</div>
-    <section class="recovery-hero" aria-labelledby="recovery-heading">
+    <section id="simple-app" class="simple-app" aria-labelledby="scan-heading">
+      <div class="scan-panel">
+        <div class="scan-intro">
+          <p class="eyebrow">LOCAL · READ-ONLY · NOTHING UPLOADED</p>
+          <h2 id="scan-heading">Find what survived. Recover safely.</h2>
+          <p>Scan every project in <code id="scan-root">your folder</code>. The scan only reads Git metadata: no files are changed, no project code runs and no remote is contacted. Recovery later happens only in copies you approve.</p>
+        </div>
+        <div class="scan-actions">
+          <button id="scan-repositories" class="primary scan-button" type="button">Scan repositories</button>
+          <button id="cancel-scan" class="secondary" type="button" hidden>Cancel scan</button>
+          <progress id="scan-progress" max="1" value="0" aria-label="Scan progress" hidden></progress>
+          <p id="scan-status" class="scan-status" role="status" aria-live="polite">Not scanned yet.</p>
+        </div>
+      </div>
+      <div id="scan-summary" class="scan-summary simple-only" aria-label="Projects by status"></div>
+      <div id="project-list" class="project-list simple-only" aria-label="Projects"></div>
+      <p class="muted simple-only">Projects are folders with <code>.git</code> or a project manifest, up to two levels below the scan folder; links and junctions are never followed. To scan another folder, restart with <code>--root &lt;folder&gt;</code> (DASHBOARD.cmd asks for it). <a href="/manual#simple-mode-scan-and-guided-recovery">How scanning and guided recovery work</a>.</p>
+    </section>
+    <section class="recovery-hero advanced-only" aria-labelledby="recovery-heading">
       <div><p class="eyebrow">PRESERVE FIRST / VERIFY EVERY CHANGE</p><h2 id="recovery-heading">Bring your work back.<br>Keep the evidence.</h2><p>One clear recovery case at a time. Protect the original, find what survived, and prove the result on an independent copy.</p><div class="hero-actions"><a class="primary" href="#cases">Choose a project</a><a class="secondary" href="/manual">Open the complete manual</a></div></div>
       <aside class="hero-snapshot"><span class="eyebrow">YOUR SAVED WORKSPACE</span><strong id="guided-case-count">Waiting for evidence</strong><p>No automatic repairs, uploads or branch resets. Saved checks describe a point in time, not continuous monitoring.</p></aside>
     </section>
     <section id="active-operation" class="operation-banner" aria-live="polite" hidden><strong id="active-operation-title"></strong><p id="active-operation-detail"></p></section>
-    <section id="how-to-recover" class="how-to-recover" aria-labelledby="how-to-title">
+    <section id="how-to-recover" class="how-to-recover advanced-only" aria-labelledby="how-to-title">
       <div class="section-title"><div><p class="eyebrow">START HERE</p><h2 id="how-to-title">How to recover <span data-help="workflow"></span></h2></div><a href="/manual#the-seven-step-workflow">Detailed walkthrough →</a></div>
       <ol class="recovery-roadmap">
         <li><strong>Define &amp; inspect</strong><p>Choose the missing capability or known-good version. Inspect; do not assume clean means complete.</p></li>
@@ -39,7 +58,7 @@
       </ol>
       <p class="warning">Never run a reset, cleanup, branch switch or “repair all” against your only surviving copy. <a href="/manual#when-to-stop">Know when to stop.</a></p>
     </section>
-    <section class="measured-overview" aria-labelledby="measured-title">
+    <section class="measured-overview advanced-only" aria-labelledby="measured-title">
       <div class="section-title"><div><p class="eyebrow">OBSERVED / NOT PREDICTED</p><h2 id="measured-title">Recovery evidence at a glance</h2></div><a href="/manual#understanding-the-statistics">What these numbers mean</a></div>
       <p class="muted">All discovered cases; independent of table search and diagnostic date filters. Unknown stays unknown. Expand a panel or use ? for its definition.</p>
       <div class="measured-grid">
@@ -49,7 +68,7 @@
         <details class="measured-panel"><summary>Attempts &amp; elapsed time <span data-help="timing"></span></summary><p>Real attempt history. Earlier failures remain visible even after recovery.</p><dl id="run-statistics" class="measured-facts"></dl></details>
       </div>
     </section>
-    <div id="workspace-sections" class="workspace-sections">
+    <div id="workspace-sections" class="workspace-sections advanced-only">
     <section id="introduction" class="workbench-section" aria-labelledby="introduction-title">
     <div class="compact-hero"><div><h2 id="introduction-title">Introduction</h2><p>Your cases. Your focus. Choose a treatment and examine the evidence.</p></div><button id="reset-workspace" class="secondary reset-workspace">RESET WORKSPACE LAYOUT</button></div>
     <div id="introduction-panels" class="workspace-sections">
@@ -119,9 +138,11 @@
     <dialog id="case-dialog" class="case-dialog" aria-labelledby="selected-name"><section id="medikit" class="panel medikit">
       <div class="panel-heading"><div><p class="eyebrow">CASE / MEDIKIT</p><h2 id="selected-name">Choose a repository</h2><p class="muted" id="selected-path">Open a medikit from the table to begin.</p></div><div class="case-header-actions"><button id="evidence" class="secondary" disabled>Evidence</button><button id="close-case" class="secondary" aria-label="Close expanded case">Close</button></div></div>
       <div id="case-notice" class="notice" role="status" aria-live="polite">Select a procedure or edit this case.</div>
+      <div class="case-mode-bar simple-only"><button id="toggle-case-advanced" class="secondary" type="button" aria-expanded="false">Show advanced tools</button></div>
+      <section id="guided-recovery" class="guided-recovery simple-only" aria-label="Guided recovery"></section>
       <div id="case-copy-map" class="case-copy-map"></div>
-      <p class="case-next-note" id="case-next-note"></p>
-      <div class="kit-grid">
+      <p class="case-next-note advanced-only" id="case-next-note"></p>
+      <div class="kit-grid advanced-only">
         <div class="kit-steps" id="steps"></div>
         <div class="kit-detail">
           <p class="eyebrow">EVIDENCE BEFORE SCORES</p><h3 id="stage-title">No repository selected</h3><p id="stage-description" class="muted">Inspection never changes branches or runs product code. Later stages require your separate verified copies.</p>
@@ -148,7 +169,7 @@
           <div class="kit-note"><strong>Evidence is not a guarantee</strong><p>Measurements inform estimates. Condition × relational quality / 100 is a scenario estimate; confidence is not a probability. Known-file retention is a separate measured fact.</p></div>
         </div>
       </div>
-      <div id="case-tools" class="case-tools" hidden>
+      <div id="case-tools" class="case-tools advanced-only" hidden>
         <div class="kit-tabs" role="tablist" aria-label="Medikit tools">
           <button role="tab" aria-selected="true" data-tab="case-editor">Case &amp; outcomes</button>
           <button role="tab" aria-selected="false" data-tab="estimate-editor">Paired estimates</button>

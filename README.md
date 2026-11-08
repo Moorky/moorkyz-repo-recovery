@@ -1,152 +1,137 @@
-# Moorkyz Repo Recovery
+# MOORKYZ Repo Recovery
 
-A local recovery workbench for preserving, comparing and recovering the other
-Moorkyz projects without overwriting surviving work. This foundation is usable
-without a Git repository, external network access or package installation.
+**Find what survived. Recover safely.** A local-first workbench that scans your
+Git repositories read-only, shows which lost commits and files still exist, and
+walks you through restoring them on verified independent copies — without ever
+changing the original.
 
-## Start here
+![Simple mode after one scan of the synthetic demo portfolio](docs/assets/simple-mode-scan-results.png)
 
-See [verified publication status](PUBLICATION_STATUS.md) for the GitHub branch
-links, audited source commits and explicit remaining limits across the portfolio.
+- **One-click assessment:** scan every project under a folder; get evidence-backed
+  findings (Git errors, missing tracked files, uncommitted work, no history) and one
+  recommended next step per project.
+- **Recovery candidates:** commits that survive only in the reflog (after
+  `reset --hard` or a deleted branch), dangling commits, stashes, existing recovery
+  refs and recent history, compared with the current version and ordered by
+  listed evidence — never by an invented probability.
+- **Guided recovery:** protect an untouched backup and a working copy, check
+  integrity, preview and restore individual files, run approved tests, validate and
+  export a Markdown report.
+- **Advanced mode:** every manual procedure of the full workbench (fix scripts,
+  recovery branches, remote import, custom validation, estimates, diagnostics) stays
+  one click away.
 
-New to recovery? Open the [complete step-by-step operator manual](docs/USER_GUIDE.md).
-The dashboard links to its readable local edition at `/manual`, with a table of
-contents, scenario troubleshooting, metric definitions and a final checklist.
+## Safety promise
 
-1. Read the [documentation map](docs/README.md).
-2. Follow the [recovery handbook](docs/RECOVERY_HANDBOOK.md), beginning with preservation.
-3. Use the [portfolio triage](docs/PORTFOLIO.md) to choose a case.
-4. Record that case with the [case template](docs/templates/CASE.md).
-5. Validate and hand off using the [audit template](docs/templates/AUDIT.md).
+- The scan reads Git metadata only. It never writes to a project, runs project code,
+  installs packages or contacts a remote.
+- Every change is previewed and needs explicit approval. Changes are applied only to
+  a verified disposable working copy. Originals and backups are re-hashed and must be
+  unchanged before a result is accepted.
+- No reset, clean, prune, push, publish or deploy exists in the workflow.
+- Approved project tests are **not sandboxed**: they run with your permissions. You
+  see the exact command and declared script text before approving.
+- The server listens on `127.0.0.1` only, with a per-session token and same-origin
+  checks. Nothing is uploaded.
 
-See [what works, remaining gaps and effort estimates](docs/READINESS.md) before
-using this tool on another project. The owner's
-[portfolio assessment](PROJECT_RECOVERY_ASSESSMENT.md) is retained as a dated
-triage report, not a completeness certificate.
+If the data you need no longer exists in any local Git object, reflog or copy, the
+tool says so. It does not generate replacement code.
 
-The subsequent [portfolio repair results](PORTFOLIO_REPAIR_RESULTS.md) separate
-verified baselines, integrated source fixes and the remaining Evidence migration
-barrier. Do not mistake the earlier assessment for a current completion claim.
-These owner-local portfolio reports are deliberately omitted from the source
-ZIP; their links refer to this checkout, not to files bundled for redistribution.
+## Quick start
 
-For actual supervised recovery, follow the
-[complete guided workflow](docs/GUIDED_RECOVERY.md): preview/acquire two copies,
-discover Git/reflog history, compare a selected commit, restore reviewed files,
-run approved validation and write the handoff. Optional remote imports go only
-to unique recovery refs in the disposable copy. Originals remain untouched.
-
-**Never treat an inventory as a backup.** Never run a repair against the only
-surviving copy. This project does not automatically merge, reset, fetch, publish
-or change other repositories.
-
-## Local commands
-
-Prerequisites: Node.js 22.13 or newer and Git on PATH; Node.js 24 LTS is recommended
-and pinned for future adoption. No npm dependencies.
-Double-click `RUN.cmd` for help, or run:
+Requirements: [Node.js](https://nodejs.org/) 22.13 or newer (24 LTS recommended) and
+Git on `PATH`. No `npm install`, no build step, no dependencies.
 
 ```powershell
-node .\src\recovery.mjs help
-node .\src\recovery.mjs assess --root "C:\Users\marvi\source\repos" --output "C:\Recovery\assessment-001"
-node --test .\tests\recovery.test.mjs
-node .\scripts\check-project.mjs
+git clone https://github.com/Moorky/moorkyz-repo-recovery.git
+cd moorkyz-repo-recovery
+node scripts/demo.mjs ../recovery-demo          # optional: synthetic damaged repositories
+node src/dashboard/server.mjs --root ../recovery-demo/portfolio --open
 ```
 
-For `assess`, the output parent must exist and the output folder must be new.
-It writes private Markdown/JSON outside the scanned tree. No repair, remote
-access or product code execution occurs. The dashboard's **Download Markdown
-report** exports saved inspections instead; inspect cases first.
+On Windows you can also double-click `DASHBOARD.cmd`; it asks for the folder that
+contains your repositories. Press **Scan repositories**, open a project card, and
+follow the guided steps. See the [5-minute quick start](docs/QUICKSTART.md) for the
+full demo walkthrough, including the lost-commit recovery.
 
-## Recovery dashboard
+## What is supported
 
-Double-click [DASHBOARD.cmd](DASHBOARD.cmd), or:
+| Supported | Requires your review | Not supported |
+|---|---|---|
+| Local Git repositories and plain project folders up to two levels below the scan folder | Choosing which candidate contains the work you want | Recovering data that exists in no local object, reflog or copy |
+| Reflog-only, dangling, stash and recovery-ref commits; recent branch history | Every copy, file restore, validation command and remote contact (explicit approval) | Deleted-disk, browser/IndexedDB, cloud-history or media recovery |
+| Byte-verified backup + working copy, one-file-at-a-time restore (≤ 64 MiB) | Running project tests (not sandboxed) | Automatic merge, reset, rebase, push or deploy |
+| Node package tests; reviewed Python, PowerShell, .NET and nested commands (Advanced) | Moving the recovered result into your original | Linked-worktree, external-gitdir and object-alternates copies (reported, not copied) |
+| Optional HTTPS/local remote import into a new namespace of the working copy (Advanced) | SSH or custom remote transports | AI-generated reconstruction or recovery-probability scores |
+
+Platforms: verified on Windows 11 with Node 22.13.0, 22.18.0 and 24.22.2. Linux and
+macOS run in the configured CI matrix; see [readiness](docs/READINESS.md) for the
+latest recorded results.
+
+## Commands
 
 ```powershell
-node .\src\dashboard\server.mjs --root "C:\Users\marvi\source\repos"
+npm start                     # dashboard on the parent folder of this checkout
+npm test                      # unit, integration, HTTP and browser end-to-end tests
+npm run lint                  # documentation links and preserved-source hashes
+npm run smoke                 # fresh-start smoke test on a synthetic demo
+node scripts/demo.mjs <new-folder>          # create the synthetic demo portfolio
+node scripts/package.mjs <existing-folder>  # release source ZIP + SHA-256
+node src/recovery.mjs assess --root <folder> --output <new-external-folder>  # Markdown/JSON report from the CLI
 ```
 
-Open **http://127.0.0.1:4317**. The website lists independent project/Git roots
-and excludes ordinary component folders. Search, filter,
-sort and double-click a row to open its floating case medikit. Continuous browsing
-is the default; switch to Pages if preferred. List settings persist in browser
-localStorage without cookies. No repair or product code runs on discovery.
+The browser end-to-end test drives an installed Edge or Chrome in headless mode
+(no npm dependency) and is reported as skipped when no Chromium browser exists.
+Set `RECOVERY_BROWSER` to a browser executable to choose one.
 
-Drag row/column grips to arrange the list, resize column edges, and click
-attributes for evidence or an explicit read-only refresh. The always-visible
-MedKit opens procedure cards, docs, setup and a downloadable parent-project
-source snapshot, without requiring a selected case. A compact intro leads to the
-inline MedKit and movable/resizable statistics accordions. Settings saves
-continuous/pages browsing; the prominent reset restores section/table layout
-without touching evidence. The English-only interface uses the linked moorkyz.com
-footer and its exact fade/glint timing, with a locally bundled, OFL-licensed font.
+## Documentation
 
-Introduction, Cases and Diagnostics organize the six panels. Sidebar case cards
-can be reordered by drag or Up/Down keys and persist with layout preferences.
-Diagnostics groups cases by state, owner or priority and filters saved examination
-and procedure timestamps using inclusive UTC dates. Unknown-time records are
-excluded from bounded ranges. Download a real, locally generated PDF summary.
-See the [AI science MVP TODO](docs/AI_SCIENCE_TODO.md) for planned experiments;
-no AI model runner or independent model scores exist yet.
+| Read | For |
+|---|---|
+| [Quick start](docs/QUICKSTART.md) | First run with the synthetic demo |
+| [Operator manual](docs/USER_GUIDE.md) | Simple mode, every advanced procedure, troubleshooting |
+| [Guided recovery](docs/GUIDED_RECOVERY.md) | The supervised workflow and its approval boundaries |
+| [Architecture](docs/ARCHITECTURE.md) | Components, data flow, trust boundaries and tests |
+| [Readiness](docs/READINESS.md) and [release readiness](docs/RELEASE_READINESS.md) | What is verified, limits and the go/no-go evidence |
+| [Dashboard reference](docs/DASHBOARD.md) and [tooling](docs/TOOLING.md) | Statuses, scoring contract, CLI commands |
+| [Security](SECURITY.md) and [contributing](CONTRIBUTING.md) | Threat boundaries, reporting, development workflow |
+| [Release roadmap](docs/RELEASE_ROADMAP.md) | Long-term plan; MVP versus deferred features |
+| [Documentation map](docs/README.md) | Everything else, including the recovery handbook |
 
-The five stages are inspection, preservation verification, object integrity,
-approved quality checks and recovery-baseline validation. Paired potential/current
-estimates, lifecycle, findings, outcome reports and timestamped procedures are
-shown together. The medikit offers previewable copy acquisition, historical-file
-restoration, recovery branches, optional remote import and working-copy file fixes.
-Validation supports reviewed nested and multi-stack commands, bounded timeouts
-and cancellation. The footer now stays in normal document flow.
-Read the
-[dashboard and scoring contract](docs/DASHBOARD.md) before interpreting a score.
+## Status
 
-Private evidence persists in SQLite under `%USERPROFILE%\.moorkyz-recovery\dashboard`.
-Use `--data <external-directory>` for another workspace and `--port <number>`
-for a different port. No dependency installation or frontend build is needed.
+Version 0.4.0 is the open-source MVP candidate. It is not a v1.0 release and no
+release tag has been published. See [release readiness](docs/RELEASE_READINESS.md)
+for the evidence and the remaining owner decisions, and the
+[changelog](CHANGELOG.md) for changes.
 
-After securing the original copies, collect local Git metadata explicitly:
-
-```powershell
-node .\src\recovery.mjs inventory --root "C:\Users\marvi\source\repos" --output "C:\Recovery\inspection-001"
-```
-
-The output parent must already exist; the output directory must be new and
-outside both the scan root and this project. See the [tool contract](docs/TOOLING.md).
-Reports are private local material and must be reviewed before sharing.
-
-## Layout
+## Project layout
 
 | Location | Purpose |
 |---|---|
-| `docs/` | Current, curated handbook, triage and decisions |
-| `docs/templates/` | Reusable case and audit formats |
-| `docs/sources/2026-10-30/` | Immutable historical input and checksum manifest; not current instructions |
-| `src/` | Project-owned read-only inventory CLI |
-| `src/dashboard/` | Local HTTP server, scoring engine and medikit worker |
-| `website/` | Dependency-free dashboard UI |
-| `scripts/` | Project consistency checks |
-| `tests/` | Disposable-fixture regression tests |
-| `.audits/` | Reviewed project change records |
+| `src/` | Read-only CLI (`recovery.mjs`) and the dashboard server, engine and procedures (`src/dashboard/`) |
+| `website/` | Dependency-free UI: Simple mode (`simple*.mjs`) and the Advanced workbench |
+| `scripts/` | Project checks, demo builder, smoke test, packaging, screenshots, headless-browser driver |
+| `tests/` | `node --test` suites on disposable synthetic repositories |
+| `docs/` | Manuals, decisions, templates, roadmap; `docs/assets/` holds demo screenshots |
+| `.github/workflows/` | CI matrix (Windows, Linux, macOS × Node 22.13.0 and 24) |
+| `.audits/` | Reviewed change records |
 
-The structure borrows stack separation and phase-based audits from
-moorkyz-template and AgenticHeaven, and preservation/governance separation from
-moorkyz-evidence. Their runtimes, private data, template histories and deployment
-configuration are deliberately not copied.
+## The owner's portfolio
 
-## Current boundary
+This repository started as the recovery workbench for the owner's own projects.
+Those records remain for provenance and are not needed to use the tool:
+[publication status](PUBLICATION_STATUS.md), the dated
+[portfolio assessment](PROJECT_RECOVERY_ASSESSMENT.md) and
+[portfolio repair results](PORTFOLIO_REPAIR_RESULTS.md) (owner-local; omitted from
+the source ZIP), the [recovery handbook](docs/RECOVERY_HANDBOOK.md),
+[portfolio triage](docs/PORTFOLIO.md) and [owner decisions](docs/OWNER_DECISIONS.md).
+Historical inputs under `docs/sources/` are Git-ignored and private.
 
-Documents have been reconciled; the dashboard provides measured local checks,
-not an automatic history-repair engine. Historical ZIP/GitHub numbers have **not**
-been reverified. Measured retention compares a known baseline; relational recovery estimates
-use condition × recovery quality, with confidence separate.
-No automatic sibling changes, remote inspection, integration, deployment, Git
-initialization or commit are included. Copy verification is byte-baseline
-verification, not a strict forensic acquisition certificate.
+**Never treat an inventory as a backup**, and never run a repair against the only
+surviving copy.
 
-Explicitly approved HTTPS/local remote inspection/import is available on
-verified disposable copies; no remote is contacted during discovery/assessment.
-Owner choices before a real recovery are collected in
-[owner decisions](docs/OWNER_DECISIONS.md).
+## License
 
-Before publishing repository content, review the [sharing policy](SECURITY.md).
-Historical inputs are intentionally ignored by Git until reviewed. Licensing of
-the new project remains an owner decision; no license from another project is assumed.
+[Apache License 2.0](LICENSE). The bundled DM Mono font is under the
+[SIL Open Font License](website/fonts/OFL.txt).

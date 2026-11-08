@@ -4,7 +4,6 @@ Read [AGENTS.md](AGENTS.md), [README.md](README.md), the
 [documentation map](docs/README.md), and the [recovery handbook](docs/RECOVERY_HANDBOOK.md)
 before taking work. This file tracks owner-scoped case ownership; it does not
 authorize repair, cleanup, Git operations, publication, or access to private data.
-Portfolio-wide tasks remain in the [portfolio scheduler](../AGENT_SCHEDULER.md).
 
 ## Queue rules
 

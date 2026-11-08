@@ -5,6 +5,7 @@ import { containedBy, readGit } from '../recovery.mjs';
 import { collectRecoveryEvidence } from './report.mjs';
 import { targetFile, planHash } from './files.mjs';
 import { checkPlan, runChecks } from './checks.mjs';
+import { checkObjects, discoverCandidates } from './candidates.mjs';
 
 const markers = ['.git', 'package.json', 'pyproject.toml', 'Cargo.toml', 'PROJECT_MANIFEST.json'];
 const skip = new Set(['.git', 'node_modules', '.venv', '.next', 'data', 'dist', 'build', 'bin', 'obj']);
@@ -150,9 +151,13 @@ export function inspect(repository) {
     commands.some(command => !good(command)) ? 'inspection-errors' :
       commands.find(command => command.args[0] === 'status').stdout ? 'uncommitted-work' : 'clean-checkout';
   const gitPoints = !hasGit ? 0 : commands.filter(good).length / commands.length * 50;
+  const linkedWorktree = hasGit && fs.statSync(path.join(repository, '.git')).isFile();
+  const objects = hasGit ? checkObjects(repository) : null;
   return {
-    at: new Date().toISOString(), measured, hasGit, commands, state,
+    at: new Date().toISOString(), measured, hasGit, linkedWorktree, commands, state,
     recoveryEvidence: hasGit ? collectRecoveryEvidence(repository) : null,
+    objects,
+    candidates: hasGit ? discoverCandidates(repository, { dangling: objects.dangling }) : null,
     conditionScore: Math.round(gitPoints + measured.staticScore / 2),
   };
 }
@@ -320,6 +325,14 @@ export function validateRecovery(source, preservation, integrityRecord, qualityR
     verifiedTargets: targets,
     acceptance,
     finalIntegrity,
+    verification: {
+      original: 'Unchanged since preservation (full SHA-256 snapshot including .git).',
+      backup: 'Unchanged since preservation (full SHA-256 snapshot including .git).',
+      gitIntegrity: finalIntegrity ? 'git fsck --full passed on the working copy.' : 'Not applicable: the copy has no Git metadata.',
+      restoredFiles: `${targets.length} restored file(s) still match their approved bytes.`,
+      checks: qualityRecord.scope,
+    },
+    originalFingerprint: preservation.baseline.fingerprint,
     scope: 'Verified baseline file preservation and completed local checks; not a probability of recovering unknown lost work.',
   };
 }
