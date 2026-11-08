@@ -20,7 +20,9 @@ contents, scenario troubleshooting, metric definitions and a final checklist.
 5. Validate and hand off using the [audit template](docs/templates/AUDIT.md).
 
 See [what works, remaining gaps and effort estimates](docs/READINESS.md) before
-using this tool on another project. The owner's
+using this tool on another project. The planned path to a public open-source
+release is tracked in the [release roadmap](docs/RELEASE_ROADMAP.md); it lists
+intended work and gates, not implemented features. The owner's
 [portfolio assessment](PROJECT_RECOVERY_ASSESSMENT.md) is retained as a dated
 triage report, not a completeness certificate.
 

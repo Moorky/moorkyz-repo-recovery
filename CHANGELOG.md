@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - 2026-11-08
+
+- Add the [open-source release roadmap](docs/RELEASE_ROADMAP.md) with a
+  re-verified baseline, release gates, task checklist and owner-decision list.
+  Documentation only; no application behavior changed.
+
 ## 0.3.1 - 2026-11-03
 
 - Fix inherited full-width hero actions, narrow-panel sizing and overlapping

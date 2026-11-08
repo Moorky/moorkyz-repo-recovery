@@ -81,3 +81,19 @@ the migration lock and staged work** and review migration separately.
 This is not a claim that the Evidence application is fully ready for normal
 startup. Its source/reference repairs passed, but the root-consolidation gate
 remains an explicit blocker. See [portfolio repair results](../PORTFOLIO_REPAIR_RESULTS.md).
+
+## Open-source release roadmap decisions
+
+On 2026-11-08 the owner asked to include the
+[release roadmap](RELEASE_ROADMAP.md) in the project. Inclusion is not approval
+of its gates or permission for Git, GitHub or publication actions. These
+roadmap items still need owner answers before the related tasks can close:
+
+| Topic | Roadmap task | Current state |
+|---|---|---|
+| Release scope, supported OS/Node/Git matrix, meaning of "automatic" | R03 / G0 | Undecided; question 4 above remains open. |
+| Copyright holder line in `LICENSE` (`Copyright [2026 ] [Moorkyz]`) and README/SECURITY licensing wording | R53 | Undecided; Apache-2.0 file exists, wording not reconciled. |
+| Distribution: keep `private: true` and Node+Git quick-start, or another package | R63 | Default: no npm publishing. |
+| Optional batch recovery and scheduled read-only checks | R38 / R39 | Neither accepted nor deferred. |
+| Test isolation approach for any unattended validation | R36 | Default: no unattended execution; checks remain unsandboxed and approval-gated. |
+| Work branch, commits, tag, GitHub settings and LinkedIn announcement | R01 / R64 / R65 / R73 | Each requires an explicit owner request. |
