@@ -1,6 +1,66 @@
 # Dashboard, estimates and medikit
 
-## Guided operator interface
+## Simple and Advanced mode
+
+The dashboard opens in **Simple mode** (stored per browser in `localStorage`
+under `moorkyz-recovery-mode`; no cookies). Simple mode shows the scan panel,
+status chips and one card per project. The header button **Advanced mode** shows
+the complete workbench described below; the scan panel stays visible in both
+modes. Inside a case, **Show advanced tools** reveals the full medikit without
+leaving Simple mode. Mode switches never carry approvals over.
+
+### Scan
+
+**Scan repositories** calls `POST /api/scan`: rediscover projects (same rules as
+below), then inspect each repository in a worker thread, one at a time. The job
+reports `progress { total, done, failed, current }`; `POST /api/cancel` sets
+`cancelRequested` and the worker stops before the next repository, ending as
+`cancelled`. Results are saved per repository as they finish, so a cancelled or
+crashed scan keeps what completed. Each project gets one `scan` procedure entry
+and the job is archived as one attempt file.
+
+A repository without verified copies receives the new inspection as its first
+gate (later gates are invalidated, exactly like **Inspect**). A repository with a
+`preservation` record keeps all gates; the scan is stored beside them
+(`scan.gatesUpdated: false`).
+
+Projects no longer found on disk keep their saved evidence and are shown as
+*Folder no longer found* (read-only) instead of being deleted.
+
+### Statuses
+
+Scan statuses come from `src/dashboard/findings.mjs`; case statuses from
+`website/simple-model.mjs`. They are labels for recorded evidence, not scores.
+
+| Status | Rule |
+|---|---|
+| Not scanned | No inspection saved |
+| Blocked: Git problems found | A blocker finding: failed Git query, unreadable HEAD (with commits present), missing/broken objects, or a scan error |
+| Recovery candidates found | At least one reflog-only, dangling, stash or recovery-ref commit |
+| Needs review | Warnings only: uncommitted work, missing tracked files, staged deletions, conflicts, no `.git`, linked worktree |
+| No local candidates found | No blocker or warning; earlier branch commits may still be listed |
+| Copies verified → Files restored → Checks passed / Checks failed → Recovery validated → Completed and handed off | Case progress, which outranks the scan label |
+
+### Candidates
+
+`src/dashboard/candidates.mjs` lists at most 50 candidates and compares the first
+25 with HEAD (`git diff --name-status --no-renames --no-ext-diff --no-textconv`).
+Kinds: *Only in reflog* (`git log --reflog --not --all`), *Dangling commit*
+(`git fsck --connectivity-only` output), *Stash* (stash index/untracked parents are
+excluded), *Recovery ref* (`refs/heads/recovery/*`, `refs/recovery/*`) and *Earlier
+commit* (last ten first-parent commits of HEAD). Ordering is deterministic: at-risk
+kinds first, then more files only in the candidate, then newer commit time, then
+hash. Each candidate carries `factors` and `unknowns`; no percentage is produced.
+Repositories above 250,000 objects skip the object check and say so.
+
+### Reports
+
+`GET /api/report.md` exports all cases; `?repository=<id>` exports one case with
+its findings, object check, top candidates, selected candidate, restored files,
+validation results, final verification statements and a *Remaining limitations*
+section.
+
+## Guided operator interface (Advanced mode)
 
 The top-level How to recover checklist links to the [operator manual](USER_GUIDE.md).
 Project cards show the next safe gate without executing it. The original, backup
@@ -34,16 +94,18 @@ no remote renderer or CDN dependency.
 ## Run locally
 
 ```powershell
-node .\src\dashboard\server.mjs --root "C:\Users\marvi\source\repos" --port 4317
+node .\src\dashboard\server.mjs --root "C:\Projects" --port 4317 --open
 ```
 
-Open http://127.0.0.1:4317 or use [DASHBOARD.cmd](../DASHBOARD.cmd).
+Open http://127.0.0.1:4317 or use [DASHBOARD.cmd](../DASHBOARD.cmd), which asks
+for the folder. `--open` launches the default browser.
 Node.js **22.13+** is required for built-in SQLite; Node 24 LTS is recommended.
 There are no external dependencies, CDN assets, frontend build or automatic installs.
 
 Private state is stored in `recovery.sqlite` (SQLite WAL) under
-`%USERPROFILE%\.moorkyz-recovery\dashboard`. Use `--data <external-directory>`
-for another workspace. State and evidence are committed transactionally; tables
+`%USERPROFILE%\.moorkyz-recovery\dashboard` for the first scan root; other roots
+automatically use `%USERPROFILE%\.moorkyz-recovery\workspaces\<root-hash>`.
+Use `--data <external-directory>` to choose explicitly. State and evidence are committed transactionally; tables
 include workspace, repositories, events, evidence and procedures. Existing
 `dashboard-state.json` is imported once, if its root matches; the original JSON
 is preserved unchanged. Never publish databases or their WAL/SHM companions.

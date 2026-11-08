@@ -35,16 +35,21 @@ an independent preservation backup.
 
 ## Start the correct workspace
 
-Open `DASHBOARD.cmd` in the recovery repository, or run:
+Double-click `DASHBOARD.cmd` in the recovery repository. It asks for the folder
+that contains your repositories, starts the local server and opens your browser.
+Or run:
 
 ```powershell
+node .\src\dashboard\server.mjs --root "C:\Projects" --open
 node .\src\dashboard\server.mjs --root "C:\Projects" --data "C:\Recovery\dashboard" --port 4317
 ```
 
 Open the loopback address printed in the terminal. The source root is the
 directory containing the projects to examine. The data directory contains the
 private SQLite database and immutable attempt files; it must not overlap the
-source root or recovery project's source.
+source root or recovery project's source. Without `--data`, the first root uses
+`%USERPROFILE%\.moorkyz-recovery\dashboard` and every other root automatically
+gets its own folder under `%USERPROFILE%\.moorkyz-recovery\workspaces\`.
 
 Use the same data directory when resuming the same case history. Another data
 directory starts a different workspace. The port is not the identity of the
@@ -56,9 +61,81 @@ own trusted session. Do not expose the dashboard publicly or proxy around its
 same-origin checks. A `vscode.dev/tunnel/...` link opens the editor, not the
 recovery website itself.
 
+## Simple mode: scan and guided recovery
+
+The dashboard opens in **Simple mode**. It shows one primary action,
+**Scan repositories**, and one card per project. Switch to **Advanced mode** in
+the header at any time; every procedure described later in this manual is
+still there. Switching modes never carries over an approval.
+
+### What the scan does
+
+The scan rediscovers projects under the root (folders with `.git` or a project
+manifest, up to two levels deep; links and junctions are skipped) and inspects
+each one in turn. For every Git project it reads:
+
+- structure, declared package checks and Git status (with optional locks disabled);
+- a bounded `git fsck --connectivity-only` object check (commits and trees, no blob
+  contents) unless the repository has more than 250,000 objects, which is reported
+  as "not checked";
+- recovery candidates: commits only reachable through the reflog (for example after
+  `git reset --hard` or a deleted branch), dangling commits reported by the object
+  check, stash entries, existing `recovery/*` refs, and the last ten commits of the
+  current branch so you can compare an older version.
+
+The scan never writes to a project, runs project code, installs packages or
+contacts a remote. Progress shows `Scanning 3 of 6: <project>`. **Cancel scan**
+stops after the current project; finished projects keep their saved results.
+Projects whose copies are already verified keep their case steps; their new scan
+result is stored alongside instead of resetting the case.
+
+### Reading a project card
+
+| Status | Meaning | Typical next step |
+|---|---|---|
+| Not scanned | No saved inspection | Scan repositories |
+| Blocked: Git problems found | Git queries failed, HEAD is unreadable or objects are missing | Protect copies; look for the missing data in other copies before any repair |
+| Recovery candidates found | Reflog-only, dangling, stash or recovery-ref commits exist | Review and choose a candidate |
+| Needs review | Uncommitted work, missing tracked files, no `.git`, linked worktree | Preserve the work before anything else |
+| No local candidates found | Nothing flagged locally | Clean is not complete: compare an older commit if you know something is missing |
+| Copies verified, Files restored, Checks passed/failed, Recovery validated, Completed | Progress of a guided case | Continue guided recovery |
+
+**Review findings** lists each finding with its evidence and next action, the
+candidates, and *What this scan cannot tell you*. Candidates are ordered by
+evidence: at-risk sources (reflog-only or dangling) first, then commits with more
+files that are missing from the current version, then newer commits. The order is
+not a probability. **Why is this listed?** shows the exact factors and unknowns.
+
+### The eight guided steps
+
+**Open guided recovery** on a card shows the steps on the left and the current
+step on the right. Locked steps unlock as their prerequisites pass.
+
+1. **Scan (read-only)** — done by the portfolio scan; can be repeated per project.
+2. **Choose what to recover** — pick a candidate (optional).
+3. **Protect two copies** — suggested folders sit beside the scan folder; edit them
+   if needed. **Preview copies** shows file count, size and required space. Tick the
+   approval box, then **Create and verify copies**.
+4. **Check Git integrity** — full `git fsck` on the working copy.
+5. **Compare and restore files** — compare the chosen candidate with the working
+   copy, preview one file at a time (bytes and excerpt) and approve each restore.
+   Optional: skip to checks if nothing needs restoring.
+6. **Run approved checks** — preview the exact command, folder and declared script
+   text. Approved scripts are **not sandboxed**; nothing runs until you tick the box.
+7. **Validate and export** — describe what was recovered and what is unverified.
+   Validation rechecks the original, the backup, restored files and Git integrity.
+   **Download case report** exports Markdown with findings, candidates, operations,
+   verification and remaining limitations.
+8. **Hand off** — write a final report. The result stays in the working copy; moving
+   it into the original is your own reviewed decision.
+
+**Show advanced tools** inside the dialog reveals the full case medikit for the
+same project (fix scripts, estimates, remote import, recovery branches, custom
+validation commands and procedure ratings).
+
 ## Read the screen before taking action
 
-The top of the dashboard gives you:
+In Advanced mode, the top of the dashboard gives you:
 
 - **How to recover:** the safe sequence, with links to detailed instructions.
 - **Evidence gates:** saved inspection, preservation, integrity, validation and handoff counts.

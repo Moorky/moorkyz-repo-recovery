@@ -1,6 +1,56 @@
 # Changelog
 
-## Unreleased - 2026-11-08
+## 0.4.0 - 2026-11-08 (open-source MVP candidate; not tagged)
+
+### Added
+
+- **Simple mode** (default): one **Scan repositories** action with progress and
+  confirmed cancellation, status chips, one card per project with evidence-backed
+  findings, next action and "what this scan cannot tell you".
+- **Recovery candidates**: reflog-only commits, dangling commits, stash entries,
+  existing `recovery/*` refs and recent branch history, compared with HEAD and
+  ordered deterministically by listed evidence (no percentages). Choose a candidate
+  per case.
+- **Guided recovery** in eight steps on top of the existing safe engine: protect
+  copies (suggested locations), integrity, compare and one-file restore, approved
+  checks with the declared script text, validation with explicit verification
+  statements, per-case Markdown report and handoff.
+- Bounded read-only object check (`git fsck --connectivity-only`, skipped above
+  250,000 objects) during inspection and the `assess` CLI.
+- `POST /api/scan`, scan cancellation via `/api/cancel`, `select-candidate` case
+  updates and `GET /api/report.md?repository=<id>`.
+- `--open`, a folder prompt in `DASHBOARD.cmd`, friendly missing-folder errors and
+  automatic per-root data folders when `--data` is omitted.
+- Synthetic demo portfolio (`scripts/demo.mjs`), fresh-start smoke test
+  (`npm run smoke`), release ZIP + SHA-256 packager, reproducible screenshots and a
+  dependency-free headless-Chromium browser driver.
+- Tests: candidate discovery with independently known commits, findings for
+  corrupted/malformed/empty/source-only/linked-worktree repositories, HTTP scan and
+  full guided workflow, cancellation and retry, hard kill during a copy, CLI options,
+  Simple-mode model, and a browser end-to-end test of the complete guided workflow.
+- GitHub Actions CI matrix (Windows, Ubuntu, macOS × Node 22.13.0 and 24), quick
+  start, architecture guide, issue and pull-request templates.
+
+### Changed
+
+- Advanced mode keeps every previous workbench feature unchanged; scores and
+  estimates appear only there.
+- Projects that disappear from discovery keep their saved evidence (shown as
+  "Folder no longer found") instead of being dropped on restart.
+- Escape closes dialogs even in embedded browsers that do not fire `cancel`.
+- Validation previews include the declared package script text.
+- The source ZIP now includes `.github/` YAML/Markdown and `docs/assets/` screenshots.
+- License metadata reconciled: `package.json` declares Apache-2.0; the LICENSE
+  appendix line reads `Copyright 2026 Moorkyz`.
+- Removed a link to a file outside this repository from `AGENT_SCHEDULER.md`, which
+  made `check-project` fail in every clone.
+
+### Not included
+
+- No release tag, push, npm publication or GitHub settings change.
+- No sandbox for project code, no unattended test execution, no AI/ML ranking.
+
+## Documentation - 2026-11-08 (before 0.4.0)
 
 - Add the [open-source release roadmap](docs/RELEASE_ROADMAP.md) with a
   re-verified baseline, release gates, task checklist and owner-decision list.

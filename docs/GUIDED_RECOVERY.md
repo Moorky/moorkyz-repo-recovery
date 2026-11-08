@@ -6,9 +6,17 @@ product the owner intended. All mutations stay in new external copies; originals
 and verified backups are not repair targets. No automatic checkout, reset,
 merge, rebase, prune, push or deployment.
 
+In **Simple mode** the same workflow appears as eight guided steps on each project
+card (scan, choose a candidate, protect, integrity, compare and restore, approved
+checks, validate and export, hand off); see the
+[manual](USER_GUIDE.md#simple-mode-scan-and-guided-recovery) and the
+[quick start](QUICKSTART.md). The sections below describe the underlying procedures,
+which **Advanced mode** exposes individually.
+
 ## 1. Inspect and choose the goal
 
-Open `DASHBOARD.cmd`, select a case and run **Inspect local condition**.
+Open `DASHBOARD.cmd`, select a case and run **Inspect local condition** (or
+**Scan repositories** for all projects at once).
 Record the intended capability/baseline in Case & outcomes. Clean Git status
 does not prove completeness. A removal commit is evidence of a change, not
 proof that the owner approved it.

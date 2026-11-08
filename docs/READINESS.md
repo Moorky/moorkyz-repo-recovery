@@ -1,15 +1,21 @@
 # Recovery workbench readiness
 
-Version **0.3.1**, 2026-11-03. The supported **supervised repository recovery**
-workflow is implemented end to end. This is not a claim that the original
-projects have already been repaired, or that disk/browser/media/AI recovery is
-implemented. See the [guided workflow](GUIDED_RECOVERY.md) and
-[pending owner decisions](OWNER_DECISIONS.md).
+Version **0.4.0**, 2026-11-08 (open-source MVP candidate, not tagged). The
+supported **supervised repository recovery** workflow is implemented end to end,
+now with a one-click read-only scan, recovery-candidate discovery and a Simple
+mode guided flow. This is not a claim that the original projects have already
+been repaired, or that disk/browser/media/AI recovery is implemented. See the
+[guided workflow](GUIDED_RECOVERY.md), [release readiness](RELEASE_READINESS.md)
+and [pending owner decisions](OWNER_DECISIONS.md).
 
 ## What works now
 
 | Capability | Verified behavior / boundary |
 |---|---|
+| One-click scan (0.4.0) | Rediscover and inspect every project read-only with progress, confirmed cancellation and per-project persistence; bounded `fsck --connectivity-only`; originals byte-identical afterwards (tested). |
+| Findings and statuses (0.4.0) | Evidence-backed findings with next action and limitations; Blocked / Recovery candidates found / Needs review / No local candidates; no percentages in Simple mode. |
+| Recovery candidates (0.4.0) | Reflog-only, dangling, stash, recovery-ref and recent-history commits; compared with HEAD; deterministic, explained ordering; selectable per case. |
+| Simple mode and guided recovery (0.4.0) | Eight steps over the existing engine with previews, explicit approvals, auto-advance, per-case Markdown report and handoff; Advanced mode keeps every earlier feature. |
 | Portfolio triage | Bounded project/nested-Git discovery; read-only audit/version/missing-index evidence; Markdown/JSON CLI reports. |
 | Dashboard | Local SQLite cases, staged gates, notes, estimates, diagnostics, history and report downloads. |
 | Copy acquisition | Preview and approve two new independent full byte copies, including ignored files and Git; verify hashes and original stability. Never overwrite an existing destination. |
@@ -28,6 +34,22 @@ implemented. See the [guided workflow](GUIDED_RECOVERY.md) and
 
 ## Validation evidence
 
+### 0.4.0 (2026-11-08, Windows 11, Git 2.50.1)
+
+- `npm test`: **87 tests, 87 passed**, 0 failed/cancelled/skipped on Node 22.18.0;
+  the same 87/87 on portable, checksum-verified Node **22.13.0** (declared minimum)
+  and **24.22.2**. Includes a headless Microsoft Edge end-to-end test of the
+  complete Simple-mode guided workflow.
+- `npm run lint` and `npm run smoke` passed on all three Node versions.
+- A hard process kill during copy acquisition left the partial backup unverified,
+  refused reuse of its destination and left the original byte-identical.
+- Linux and macOS: **not run**. The CI matrix is configured but has never executed
+  because no push was authorized. Treat those platforms as unverified.
+- Manual browser walkthrough of the demo (scan → handoff) in an integrated browser;
+  the Blob download event is not observable there, so the report endpoint is
+  verified through HTTP tests instead.
+
+### 0.3.1 (2026-11-03)
 - **66 automated tests passed**, zero failed/skipped; syntax, whitespace and
   local-link checks passed, and all 13 preserved historical input hashes matched.
 - Full regression testing covers acquisition, stale approvals, path boundaries,
@@ -73,9 +95,10 @@ implemented. See the [guided workflow](GUIDED_RECOVERY.md) and
 
 ## Ready to use
 
-Open [DASHBOARD.cmd](../DASHBOARD.cmd) or use `npm start`. No frontend build or
-package installation is required. Start with the [extensive operator manual](USER_GUIDE.md)
-and follow the [guided recovery](GUIDED_RECOVERY.md)
+Run `DASHBOARD.cmd` (asks for the folder) or `node src/dashboard/server.mjs --root <folder> --open`.
+No frontend build or package installation is required. Start with the
+[quick start](QUICKSTART.md), then the [extensive operator manual](USER_GUIDE.md)
+and the [guided recovery](GUIDED_RECOVERY.md)
 steps rather than running a copied reset command.
 
 The owner subsequently authorized a local portfolio pass. Verified case results

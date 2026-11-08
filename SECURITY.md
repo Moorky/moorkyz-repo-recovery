@@ -13,7 +13,37 @@ Before committing or publishing repository content:
 1. Review every file proposed for staging; never stage full backups.
 2. Keep raw inventories, evidence media, `.env`, tokens and private logs excluded.
 3. Review archived inputs locally and publish only deliberately sanitized material.
-4. Decide project licensing and source-release permissions.
+4. The project is licensed under Apache-2.0 ([LICENSE](LICENSE)). Publishing,
+   release tags and repository settings remain separate owner decisions.
+
+## Reporting a vulnerability
+
+Please do not open a public issue for a security problem. Use GitHub's private
+vulnerability reporting for this repository (Security tab → *Report a
+vulnerability*) when it is enabled, or contact the maintainer privately through
+the GitHub profile. Never attach private repositories, credentials or evidence;
+a synthetic reproduction (see `scripts/demo.mjs`) is enough.
+
+| Version | Supported |
+|---|---|
+| 0.4.x | Yes (current MVP line) |
+| < 0.4 | No |
+
+There is no bug bounty and no guaranteed response time. Fixes are released with a
+changelog entry after the test suite passes.
+
+## What the scan reads
+
+**Scan repositories** and the `assess` CLI only read originals: directory names,
+root manifests (`package.json` parsed as data, max 1 MiB), and Git through
+`readGit` with `GIT_OPTIONAL_LOCKS=0`, fsmonitor and automatic maintenance
+disabled, no pager and inherited Git path variables removed. Commands are
+`rev-parse`, `status`, `show-ref`, `worktree list`, `ls-files`, `for-each-ref`,
+`rev-list`, `stash list`, `reflog show`, `log`, `show -s`, `diff --name-status`,
+`ls-tree`, `count-objects` and `fsck --connectivity-only` (no `--lost-found`,
+skipped above 250,000 objects). Tests prove the full byte snapshot of every demo
+original, including `.git`, is identical after a scan. Ordinary reads can still
+update filesystem access times; this is not forensic acquisition.
 
 The owner-requested `PROJECT_RECOVERY_ASSESSMENT.md` is a dated project-level
 report kept here explicitly, excluded from the root-file allowlist for the
@@ -85,9 +115,11 @@ are excluded from bounded filters, never replaced with scan time.
 
 The parent-project source ZIP excludes Git metadata, historical source originals,
 audits, dependencies, SQLite/runtime data, links and hidden nested files. It
-contains only allowlisted root files, textual source/documentation paths and
-the specifically allowlisted DM Mono font with its redistribution license and
-local favicon SVG. Other SVG/binary paths remain excluded.
+contains only allowlisted root files, textual source/documentation paths
+(including `.github/` workflow and template YAML/Markdown), the synthetic-demo
+screenshots under `docs/assets/`, and the specifically allowlisted DM Mono font
+with its redistribution license and local favicon SVG. Other SVG/binary paths
+remain excluded. `scripts/package.mjs` builds the same archive with a SHA-256 file.
 This is not a forensic backup, full Git export or secret scanner. Review allowed
 source content before sharing; fixed path exclusions cannot detect secrets
 embedded in otherwise valid source files.

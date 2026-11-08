@@ -8,7 +8,7 @@
 - **Observed application version:** `0.3.1`
 - **Assessment date:** 2026-11-08 (baseline re-measured on inclusion; see [section 2.1](#21-baseline-re-verified-on-inclusion-2026-11-08))
 - **Purpose:** Convert an existing supervised local Git-recovery workbench into a polished, safe, useful, well-tested, documented, publicly demonstrable open-source portfolio project.
-- **Status:** Planning document. **No roadmap task (R00–R74) and no release gate (G0–G9) is complete.** This is not a certificate of release readiness, an owner approval, or authorization for any repair, Git operation, publication or GitHub setting change.
+- **Status:** Long-term plan. The 0.4.0 open-source MVP implemented a subset (see [section 6.0](#60-mvp-delivery-map-040)); **no release gate (G0–G9) is approved.** This is not a certificate of release readiness, an owner approval, or authorization for any repair, Git operation, publication or GitHub setting change.
 
 > **How to use this document:** Give the [master implementation prompt](#15-master-ai-coding-agent-prompt-copy-and-use) to a coding agent together with the repository and this roadmap. Require the agent to execute phases in order, maintain this living checklist (see [section 14.1](#141-maintaining-this-roadmap)), substantiate its work with test artifacts, and request review at high-risk gates. Never interpret a checked box, a passing unit test, or a self-generated agent report as an independent release approval.
 
@@ -276,16 +276,37 @@ Rank candidates using documented features only, for example:
 
 **Phase status** (update with audit links per [section 14.1](#141-maintaining-this-roadmap)):
 
-| Phase | Tasks | Status as of 2026-11-08 | Evidence |
+| Phase | Tasks | Status as of 2026-11-08 (0.4.0 MVP) | Evidence |
 |---|---|---|---|
-| 0 — Baseline | R00–R03 | Not started (inclusion-time snapshot in [section 2.1](#21-baseline-re-verified-on-inclusion-2026-11-08)) | — |
-| 1 — Evidence and safety foundation | R10–R13 | Not started | — |
-| 2 — Simple/Advanced UI | R20–R24 | Not started | — |
-| 3 — Safe automation | R30–R39 | Not started; R38/R39 not yet accepted or deferred | — |
-| 4 — Reliability and platforms | R40–R44 | Not started | — |
-| 5 — Documentation and hygiene | R50–R54 | Not started | — |
-| 6 — GitHub readiness | R60–R65 | Not started; R64/R65 are owner actions | — |
-| 7 — Public launch | R70–R74 | Not started; R73 is an owner action | — |
+| 0 — Baseline | R00–R03 | Baseline recorded ([section 2.1](#21-baseline-re-verified-on-inclusion-2026-11-08)); MVP scope set by owner request; R03 support matrix partly recorded in [release readiness](RELEASE_READINESS.md) | [MVP audit](../.audits/2026-11-08-open-source-mvp.md) |
+| 1 — Evidence and safety foundation | R10–R13 | Partial: evidence-backed findings (R10), percentages removed from default UX (R11); R12/R13 partial | same |
+| 2 — Simple/Advanced UI | R20–R24 | Partial: Simple/Advanced modes and guided steps (R20–R22); R23/R24 partial (no screen-reader or WCAG audit) | same |
+| 3 — Safe automation | R30–R39 | R30–R32 done for the MVP; R33–R37 delivered through the existing one-file engine; R38/R39 **deferred** | same |
+| 4 — Reliability and platforms | R40–R44 | Partial: demo fixtures, interruption tests, Windows Node 22.13/22.18/24 verified; Linux/macOS CI not yet run; R43/R44 not started | same |
+| 5 — Documentation and hygiene | R50–R54 | Done for 0.4.0 except owner confirmation of licensing | same |
+| 6 — GitHub readiness | R60–R65 | R60 workflow and R62 templates added (CI **not yet run**: no push authorized); R61 not started; R63 quick start + package script; R64/R65 owner actions | same |
+| 7 — Public launch | R70–R74 | R70 synthetic demo exists; R71–R74 not started (owner) | — |
+
+### 6.0 MVP delivery map (0.4.0)
+
+The owner asked on 2026-11-08 for the smallest complete, trustworthy product rather
+than this whole roadmap. Delivered in 0.4.0:
+
+| MVP feature | Roadmap tasks | Delivered as |
+|---|---|---|
+| One-click repository assessment | R30, R10 | `POST /api/scan`, worker with progress/cancel, `findings.mjs` |
+| Simplified dashboard + Advanced mode | R11, R20–R22 | Simple mode default; full workbench unchanged in Advanced mode |
+| Recovery candidate discovery | R31, R32 | `candidates.mjs`: reflog-only, dangling, stash, recovery refs, recent history; deterministic, explained ordering |
+| Guided recovery | R21, R33–R35 | Eight guided steps over the existing previewed/approved engine |
+| Verification and reporting | R36, R37 | Declared-script preview, not-sandboxed approval, final verification statements, per-case Markdown report |
+| Testing and reliability | R40–R42 (partial) | Synthetic demo, HTTP and browser E2E, interruption and CLI tests, smoke script |
+| Documentation and GitHub | R50–R54, R60, R62, R63 | README, quick start, architecture, CI workflow, templates, packager |
+
+Deliberately deferred (not implied by 0.4.0): batch restore (R38), scheduled checks
+(R39), versioned finding schema and idempotency keys (R10/R13 full), real execution
+isolation (R36 beyond approval), performance budgets (R43), human security and
+usability review (R44), CodeQL/secret scanning (R61), GitHub settings, tag and
+release (R64/R65), video, case study and LinkedIn launch (R71–R73).
 
 ### Phase 0 — Freeze, verify and protect the current baseline (P0, ~2–4 PD)
 

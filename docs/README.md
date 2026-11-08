@@ -5,7 +5,10 @@ English historical originals remain intact for provenance, not as parallel manua
 
 | Read | Purpose |
 |---|---|
-| [Complete operator manual](USER_GUIDE.md) | First launch through verified handoff, worked command examples, failure recovery and metric meanings |
+| [Quick start](QUICKSTART.md) | Five-minute first run on the synthetic demo |
+| [Architecture](ARCHITECTURE.md) | Components, data flow, persistence, trust boundaries and tests |
+| [Release readiness](RELEASE_READINESS.md) | 0.4.0 MVP evidence, known limitations and go/no-go recommendation |
+| [Complete operator manual](USER_GUIDE.md) | Simple mode, first launch through verified handoff, worked command examples, failure recovery and metric meanings |
 | [Recovery handbook](RECOVERY_HANDBOOK.md) | Safe sequence, recovery classes and completion gates |
 | [Readiness and estimates](READINESS.md) | Working capabilities, unsupported recovery paths, safe usage and remaining effort |
 | [Open-source release roadmap](RELEASE_ROADMAP.md) | Planned path to a public release: scope, safety invariants, gates G0–G9, tasks R00–R74; a plan, not a readiness claim |
