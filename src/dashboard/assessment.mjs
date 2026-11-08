@@ -86,6 +86,20 @@ export function updateCase(repository, input, at = new Date().toISOString()) {
     repository.lifecycle[input.type === 'deliver' ? 'deliveredAt' : 'dismissedAt'] = at;
     repository.lifecycle[input.type === 'deliver' ? 'dismissedAt' : 'deliveredAt'] = null;
     repository.history.push({ at, reason: input.type });
+  } else if (input.type === 'select-candidate') {
+    if (input.commit === null) {
+      repository.selectedCandidate = null;
+      changed(repository, 'Recovery candidate cleared', at);
+      return;
+    }
+    if (typeof input.commit !== 'string' || !/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(input.commit)) throw new Error('Choose a listed candidate commit.');
+    const listed = [
+      ...(repository.scan?.inspection ?? repository.records.inspection)?.candidates?.candidates ?? [],
+      ...repository.records.history?.candidates?.candidates ?? [],
+    ].find(item => item.commit === input.commit);
+    if (!listed) throw new Error('That commit is not in the current candidate list. Scan again or discover history first.');
+    repository.selectedCandidate = { commit: listed.commit, subject: listed.subject, kinds: listed.kinds, at };
+    changed(repository, `Recovery candidate selected: ${listed.commit.slice(0, 12)}`, at);
   } else throw new Error('Unknown case update.');
 }
 

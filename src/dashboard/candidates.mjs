@@ -5,8 +5,8 @@ import { readGit } from '../recovery.mjs';
 
 const good = result => result.exitCode === 0 && result.error === null;
 const hash = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
-const kindRank = { 'reflog-only': 0, unreachable: 0, stash: 1, 'recovery-ref': 2 };
-export const candidateLimits = { reflog: 200, dangling: 200, listed: 50, compared: 25, samplePaths: 20, maxObjects: 250_000 };
+const kindRank = { 'reflog-only': 0, unreachable: 0, stash: 1, 'recovery-ref': 2, 'recent-history': 3 };
+export const candidateLimits = { reflog: 200, dangling: 200, listed: 50, compared: 25, samplePaths: 20, maxObjects: 250_000, recentHistory: 10 };
 
 function rows(text) {
   return text.split(/\r?\n/).filter(Boolean).map(line => line.split('\t'));
@@ -70,6 +70,7 @@ function describe(candidate) {
   if (candidate.kinds.includes('reflog-only')) factors.push(`Only reachable through the reflog (${candidate.selectors.slice(0, 3).join(', ') || 'reflog entry'}): it disappears when the reflog expires.`);
   if (candidate.kinds.includes('stash')) factors.push(`Stash entry ${candidate.selectors.find(item => item.startsWith('stash@')) || ''}`.trim() + ': uncommitted work saved by git stash.');
   if (candidate.kinds.includes('recovery-ref')) factors.push(`Already preserved by recovery ref ${candidate.refs.join(', ')}.`);
+  if (candidate.kinds.includes('recent-history')) factors.push(`Earlier commit on the current branch (${candidate.selectors.find(item => item.startsWith('HEAD~')) || 'history'}); still reachable, listed so you can compare an older version.`);
   const comparison = candidate.comparison;
   if (comparison && !comparison.error) {
     if (comparison.onlyInCandidate) factors.push(`${comparison.onlyInCandidate} file(s) exist here but not in ${comparison.base ? 'current HEAD' : 'the (unborn) current branch'}.`);
@@ -137,6 +138,10 @@ export function discoverCandidates(folder, { dangling = [] } = {}) {
   for (const commit of dangling.slice(0, candidateLimits.dangling)) {
     if (!stashParents.has(commit)) add(commit, 'unreachable');
   }
+  if (head) {
+    const recent = rows(run('recent history', ['log', '--first-parent', '-n', String(candidateLimits.recentHistory + 1), '--format=%H%x09%cI%x09%s', head]));
+    for (const [index, [commit, at, ...subject]] of recent.slice(1).entries()) add(commit, 'recent-history', { at, subject: subject.join('\t'), selector: `HEAD~${index + 1}` });
+  }
   const missingDetails = [...found.values()].filter(item => !item.at);
   for (const item of missingDetails) {
     const shown = readGit(folder, ['show', '-s', '--format=%cI%x09%s', item.commit]);
@@ -154,7 +159,8 @@ export function discoverCandidates(folder, { dangling = [] } = {}) {
   return {
     at: new Date().toISOString(), head, candidates, errors,
     totals: { listed: candidates.length, discovered: total, reflogOnly: count('reflog-only'), unreachable: count('unreachable'),
-      stashes: count('stash'), recoveryRefs: count('recovery-ref') },
-    scope: `Local refs, reflogs, stashes and dangling commits from the object check; at most ${candidateLimits.listed} listed and ${candidateLimits.compared} compared with HEAD. No remote contacted. Expired reflogs and garbage-collected objects cannot be found.`,
+      stashes: count('stash'), recoveryRefs: count('recovery-ref'), recentHistory: count('recent-history'),
+      offBranch: candidates.filter(item => item.kinds.some(kind => kind !== 'recent-history')).length },
+    scope: `Local refs, reflogs, stashes, dangling commits from the object check and the last ${candidateLimits.recentHistory} commits of the current branch; at most ${candidateLimits.listed} listed and ${candidateLimits.compared} compared with HEAD. No remote contacted. Expired reflogs and garbage-collected objects cannot be found.`,
   };
 }

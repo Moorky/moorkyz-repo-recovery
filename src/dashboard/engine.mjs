@@ -325,6 +325,14 @@ export function validateRecovery(source, preservation, integrityRecord, qualityR
     verifiedTargets: targets,
     acceptance,
     finalIntegrity,
+    verification: {
+      original: 'Unchanged since preservation (full SHA-256 snapshot including .git).',
+      backup: 'Unchanged since preservation (full SHA-256 snapshot including .git).',
+      gitIntegrity: finalIntegrity ? 'git fsck --full passed on the working copy.' : 'Not applicable: the copy has no Git metadata.',
+      restoredFiles: `${targets.length} restored file(s) still match their approved bytes.`,
+      checks: qualityRecord.scope,
+    },
+    originalFingerprint: preservation.baseline.fingerprint,
     scope: 'Verified baseline file preservation and completed local checks; not a probability of recovering unknown lost work.',
   };
 }

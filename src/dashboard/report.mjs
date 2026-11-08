@@ -1,4 +1,5 @@
 import { readGit } from '../recovery.mjs';
+import { assessFindings, limitations } from './findings.mjs';
 
 const good = result => result.exitCode === 0 && result.error === null;
 const nulList = text => text.split('\0').filter(Boolean);
@@ -116,6 +117,20 @@ export function renderReport(state) {
       `- Declared supported checks (not executed by inspection): ${text(inspection?.measured?.availableChecks?.join(', ') || null)}.`);
     const head = inspection?.commands.find(command => command.args.includes('--verify') && command.args.includes('HEAD'));
     output.push(`- HEAD: ${text(head && good(head) ? head.stdout.trim() : null)}.`);
+    const view = repository.scanView ?? { ...assessFindings(repository.inspectionError ? null : inspection, repository.inspectionError ?? null),
+      candidates: inspection?.candidates ?? null, at: inspection?.at ?? null };
+    output.push(`- Scan status: ${text(view.label)}${view.at ? ` (scanned ${text(view.at)})` : ''}.`);
+    for (const finding of view.findings ?? []) {
+      output.push(`- Finding [${text(finding.severity)}]: ${text(finding.title)}. Evidence: ${text(finding.evidence)}. Next: ${text(finding.nextAction)}`);
+    }
+    const objects = (repository.scan?.inspection ?? inspection)?.objects;
+    if (objects) output.push(`- Object check: ${objects.ran ? (objects.passed ? 'passed (connectivity only)' : `FAILED: ${text(objects.problems.slice(0, 3).join('; '))}`) : `not run: ${text(objects.skippedReason)}`}.`);
+    for (const candidate of view.candidates?.candidates?.slice(0, 10) ?? []) {
+      const comparison = candidate.comparison && !candidate.comparison.error ? `; vs HEAD: ${candidate.comparison.onlyInCandidate} only here, ${candidate.comparison.changed} changed, ${candidate.comparison.onlyInHead} only in HEAD` : '';
+      output.push(`- Candidate #${candidate.rank}: ${text(candidate.commit)} (${text(candidate.kinds.join(', '))}) ${text(candidate.at)} ${text(candidate.subject)}${text(comparison)}.`);
+    }
+    if ((view.candidates?.candidates?.length ?? 0) > 10) output.push(`- Further candidates: ${view.candidates.candidates.length - 10} not listed in this report.`);
+    if (repository.selectedCandidate) output.push(`- Selected candidate: ${text(repository.selectedCandidate.commit)} (${text(repository.selectedCandidate.subject)}), chosen ${text(repository.selectedCandidate.at)}.`);
     if (evidence) {
       output.push(
         `- Reachable commits across refs: ${text(evidence.commits)}; shallow history: ${text(evidence.shallow)}.`,
@@ -157,12 +172,17 @@ export function renderReport(state) {
       output.push(`- Validation ${text(result.check)}: exit ${text(result.exitCode)}${result.error ? `; ${text(result.error)}` : ''}.`);
     }
     if (records.recovery?.acceptance) output.push(`- Reviewed acceptance: ${text(records.recovery.acceptance)}`);
+    for (const [label, value] of Object.entries(records.recovery?.verification ?? {})) output.push(`- Final verification (${text(label)}): ${text(value)}`);
     if (records['rescue-apply']) output.push(`- Preserved recovery branch: ${text(records['rescue-apply'].branch)} at ${text(records['rescue-apply'].sourceCommit)}.`);
     if (records['remote-fetch']) output.push(`- Imported remote namespace: ${text(records['remote-fetch'].namespace)}; ${text(records['remote-fetch'].imported?.length)} refs.`);
     for (const procedure of repository.procedures ?? []) {
       output.push(`- Procedure: ${text(procedure.name)}; ${text(procedure.at)}; ${text(procedure.status)}; archived attempt ${text(procedure.evidenceId)}.`);
     }
   }
+  output.push('', '## Remaining limitations', '', ...limitations.map(item => `- ${item}`),
+    '- Approved validation commands are not sandboxed: they run with your user permissions and may access files and the network.',
+    '- A passing check proves only what that check tests, not that all intended functionality is restored.',
+    '- Nothing in this report was written to an original repository, pushed, published or deployed by this tool.');
   output.push('', '## Discovery boundaries', '',
     'Discovery is bounded to the root, children and grandchildren; unmarked/deeper projects may be absent.',
     'Ignored/runtime/browser data, historical deletions and external backups are not assessed for completeness.');

@@ -15,6 +15,41 @@ import { sourceArchive } from './source-archive.mjs';
 import { renderReport } from './report.mjs';
 import { actionNames, recordKey, invalidatedKeys, isPreview } from './procedures.mjs';
 import { renderDocumentation } from './documentation.mjs';
+import { assessFindings } from './findings.mjs';
+
+// Merge a fresh discovery with saved cases. Saved evidence of projects that are no longer
+// discovered is kept (marked unavailable) instead of being silently deleted.
+export function reconcile(previousRepositories, discovered, at) {
+  const repositories = discovered.repositories.map(repository => {
+    const previous = previousRepositories.find(item => item.id === repository.id);
+    const merged = initialize(previous ? { ...previous, name: repository.name, markers: repository.markers, hasGit: repository.hasGit, empty: repository.empty } : repository, at);
+    delete merged.unavailable;
+    return merged;
+  });
+  for (const previous of previousRepositories) {
+    if (repositories.some(item => item.id === previous.id)) continue;
+    if (Object.keys(previous.records ?? {}).length || previous.procedures?.length) repositories.push({ ...previous, unavailable: true });
+  }
+  return repositories.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function latestInspection(repository) {
+  return repository.scan?.inspection ?? repository.records.inspection ?? null;
+}
+
+export function scanView(repository) {
+  const inspection = latestInspection(repository);
+  const error = repository.scan?.error ?? null;
+  const at = repository.scan?.at ?? inspection?.at ?? null;
+  return {
+    at, error, gatesUpdated: repository.scan ? repository.scan.gatesUpdated === true : Boolean(inspection),
+    state: inspection?.state ?? null, hasGit: inspection?.hasGit ?? repository.hasGit,
+    ...assessFindings(error ? null : inspection, error),
+    candidates: error ? null : inspection?.candidates ?? null,
+    objects: inspection?.objects ? { ran: inspection.objects.ran, passed: inspection.objects.passed, objectCount: inspection.objects.objectCount,
+      skippedReason: inspection.objects.skippedReason ?? null, problems: inspection.objects.problems } : null,
+  };
+}
 
 const publicRoot = path.join(projectRoot, 'website');
 const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'],
@@ -46,11 +81,7 @@ export async function startDashboard({ root, data, port = 4317 }) {
   if (fs.realpathSync(attempts) !== attempts) throw new Error('Attempt archive must not be a linked directory.');
   const store = openStore(data, root);
   let state = store.load() || { schemaVersion: 1, ...discover(root), scannedAt: new Date().toISOString() };
-  // Reconcile old discovery rows: README-only component folders are not repositories.
-  state.repositories = discovered.repositories.map(repository => {
-    const previous = state.repositories.find(item => item.id === repository.id);
-    return initialize(previous ? { ...previous, name: repository.name, markers: repository.markers } : repository, state.scannedAt);
-  });
+  state.repositories = reconcile(state.repositories, discovered, state.scannedAt);
   state.skipped = discovered.skipped;
   let job = null;
   let worker = null;
@@ -112,17 +143,21 @@ export async function startDashboard({ root, data, port = 4317 }) {
       if (request.headers['x-recovery-token'] !== token) return send(response, 403, { error: 'Dashboard session token required.' });
       if (request.method === 'GET' && route === '/api/report.md') {
         if (job?.status === 'running') return send(response, 409, { error: 'Wait for the active job before exporting saved evidence.' });
+        const only = new URL(request.url, origin).searchParams.get('repository');
+        const selection = only ? state.repositories.filter(item => item.id === only) : state.repositories;
+        if (only && !selection.length) return send(response, 404, { error: 'Unknown repository.' });
         response.writeHead(200, {
           'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'no-store',
-          'Content-Disposition': 'attachment; filename="recovery-assessment.md"',
+          'Content-Disposition': `attachment; filename="${only ? 'recovery-case-report.md' : 'recovery-assessment.md'}"`,
         });
-        return response.end(renderReport(state));
+        return response.end(renderReport({ ...state, repositories: selection.map(item => ({ ...item, scanView: scanView(item) })) }));
       }
       if (request.method === 'GET' && route === '/api/state') {
         return send(response, 200, {
           root: state.root, scannedAt: state.scannedAt, skipped: state.skipped, job, remedies, catalog, storage: 'SQLite',
-          repositories: state.repositories.map(repository => ({
+          repositories: state.repositories.map(({ scan, ...repository }) => ({
             ...repository,
+            scan: scanView({ ...repository, scan }),
             // Full baseline hashes and process logs stay on disk, not in the overview payload.
             records: Object.fromEntries(Object.entries(repository.records).map(([key, value]) => [key, {
               at: value.at, passed: value.passed, state: value.state, profile: value.profile,
@@ -187,7 +222,78 @@ export async function startDashboard({ root, data, port = 4317 }) {
         save();
         return send(response, 200, { message: 'Directory rescanned; previous score gates reset.' });
       }
+      if (request.method === 'POST' && route === '/api/scan') {
+        if (job?.status === 'running') return send(response, 409, { error: 'A job is already running. Wait for it to finish or cancel it first.' });
+        const at = new Date().toISOString();
+        const fresh = discover(state.root);
+        state.repositories = reconcile(state.repositories, fresh, at);
+        state.skipped = fresh.skipped;
+        state.scannedAt = at;
+        const targets = state.repositories.filter(repository => !repository.unavailable);
+        job = { id: crypto.randomUUID(), action: 'scan', status: 'running', startedAt: at, cancelRequested: false,
+          progress: { total: targets.length, done: 0, failed: 0, current: null } };
+        save();
+        const jobId = job.id;
+        const results = [];
+        worker = new Worker(new URL('./worker.mjs', import.meta.url), {
+          workerData: { action: 'scan', repositories: targets.map(({ id, path: folder }) => ({ id, path: folder })) },
+        });
+        const scanWorker = worker;
+        function finish(status, error) {
+          if (job.id !== jobId || job.status !== 'running') return;
+          job = { ...job, status, ...(error ? { error } : {}), finishedAt: new Date().toISOString(), progress: { ...job.progress, current: null } };
+          try {
+            fs.writeFileSync(path.join(attempts, `${jobId}.json`), JSON.stringify({ schemaVersion: 1, action: 'scan',
+              startedAt: job.startedAt, finishedAt: job.finishedAt, status, error: error ?? null, results }), { flag: 'wx', mode: 0o600 });
+          } catch (archiveError) { job.error = `${job.error ? `${job.error}; ` : ''}scan archive failed: ${archiveError.message}`; }
+          try { save(); } catch (saveError) { job = { ...job, status: 'failed', error: `Scan results could not be saved: ${saveError.message}` }; }
+        }
+        worker.on('message', message => {
+          if (job.id !== jobId || job.status !== 'running') return;
+          if (message.type === 'progress') {
+            job.progress = { ...job.progress, current: state.repositories.find(item => item.id === message.id)?.name ?? null };
+          } else if (message.type === 'result') {
+            const repository = state.repositories.find(item => item.id === message.id);
+            if (!repository) return;
+            const finishedAt = message.inspection?.at ?? new Date().toISOString();
+            // Cases that already have verified copies keep their gates; the new scan is stored alongside them.
+            const gatesUpdated = Boolean(message.inspection) && !repository.records.preservation;
+            if (gatesUpdated) {
+              for (const key of invalidatedKeys('inspect')) delete repository.records[key];
+              repository.recoveryTargets = [];
+              repository.records.inspection = message.inspection;
+              observe(repository, message.inspection);
+              repository.scan = { at: finishedAt, gatesUpdated: true };
+            } else {
+              repository.scan = { at: finishedAt, gatesUpdated: false, ...(message.error ? { error: message.error } : { inspection: message.inspection }) };
+            }
+            repository.procedures.push({ id: crypto.randomUUID(), name: 'scan', action: 'scan', at: finishedAt, evidenceId: jobId,
+              status: message.error ? 'failed' : 'completed', helpingFactor: null, rationale: '', ...(message.error ? { error: message.error } : {}) });
+            results.push({ repositoryId: repository.id, status: message.error ? 'failed' : 'completed', error: message.error ?? null,
+              state: message.inspection?.state ?? null, gatesUpdated });
+            job.progress = { ...job.progress, done: job.progress.done + 1, failed: job.progress.failed + (message.error ? 1 : 0) };
+            try { save(); } catch (error) {
+              finish('failed', `Scan result could not be saved: ${error.message}`);
+              scanWorker.terminate();
+            }
+          } else if (message.type === 'done') finish(message.cancelled ? 'cancelled' : 'completed');
+          else if (message.error) finish('failed', message.error);
+        });
+        worker.once('error', error => finish('failed', error.message));
+        worker.once('exit', code => {
+          if (job.id === jobId && job.status === 'running') {
+            finish('failed', `Scan worker ended early (exit ${code}); ${job.progress.done} of ${job.progress.total} repositories were scanned and saved.`);
+          }
+          if (worker === scanWorker) worker = null;
+        });
+        return send(response, 202, job);
+      }
       if (request.method === 'POST' && route === '/api/cancel') {
+        if (job?.status === 'running' && job.action === 'scan' && worker) {
+          worker.postMessage({ cancel: true });
+          job = { ...job, cancelRequested: true };
+          return send(response, 202, { message: 'Cancellation requested. The scan stops after the current repository; finished results stay saved.' });
+        }
         if (job?.status !== 'running' || job.action !== 'quality' || !worker) return send(response, 409, { error: 'Only an active validation process can be cancelled. Copy/Git operations finish their current bounded action.' });
         worker.postMessage({ cancel: true });
         return send(response, 202, { message: 'Cancellation requested. Wait for recorded process cleanup results.' });
@@ -197,6 +303,7 @@ export async function startDashboard({ root, data, port = 4317 }) {
         const input = await body(request);
         const repository = state.repositories.find(item => item.id === input.repositoryId);
         if (!repository || !actionNames.includes(input.action)) return send(response, 400, { error: 'Unknown repository or medikit action.' });
+        if (repository.unavailable) return send(response, 409, { error: 'This project folder is no longer discovered. Its saved evidence is kept read-only.' });
         if (input.action === 'preserve' && (typeof input.backup !== 'string' || typeof input.workingCopy !== 'string')) {
           return send(response, 400, { error: 'Backup and working-copy paths are required.' });
         }
@@ -236,8 +343,10 @@ export async function startDashboard({ root, data, port = 4317 }) {
             archiveAttempt({ result: message.result });
             const key = recordKey(input.action);
             repository.records[key] = message.result;
-            if (input.action === 'inspect') observe(repository, message.result);
-            else if (!isPreview(input.action)) changed(repository, `Procedure: ${input.action}`, message.result.at);
+            if (input.action === 'inspect') {
+              observe(repository, message.result);
+              repository.scan = { at: message.result.at, gatesUpdated: true };
+            } else if (!isPreview(input.action)) changed(repository, `Procedure: ${input.action}`, message.result.at);
             if (!isPreview(input.action)) repository.procedures.push({
               id: job.id, name: input.remedy || input.action, action: input.action, at: message.result.at, evidenceId: jobId, startedAt: job.startedAt, durationMs: Date.now() - Date.parse(job.startedAt),
               status: message.result.passed === false ? 'failed' : 'completed',
@@ -290,7 +399,7 @@ export async function startDashboard({ root, data, port = 4317 }) {
   return { server, origin, close: async () => {
     if (worker) {
       const active = worker;
-      if (job?.action === 'quality') active.postMessage({ cancel: true });
+      if (['quality', 'scan'].includes(job?.action)) active.postMessage({ cancel: true });
       await new Promise(resolve => active.once('exit', resolve));
     }
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

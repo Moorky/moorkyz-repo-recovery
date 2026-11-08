@@ -85,23 +85,25 @@ export function assessFindings(inspection, error = null) {
   if (evidence?.shallow) add('shallow', 'info', 'Shallow clone', 'Older history was never downloaded to this copy.', 'Older commits can only come from another clone or the remote.');
   if (candidates?.errors?.length) add('candidate-errors', 'warning', 'Some history queries failed', candidates.errors.slice(0, 3).join('\n'), 'Review the candidates on a working copy.');
   const totals = candidates?.totals;
-  if (totals?.listed) {
+  const offBranch = totals ? totals.offBranch ?? totals.listed : 0;
+  if (offBranch) {
     const parts = [
       totals.reflogOnly && `${plural(totals.reflogOnly, 'commit')} only in the reflog`,
       totals.unreachable && `${plural(totals.unreachable, 'dangling commit')}`,
       totals.stashes && (totals.stashes === 1 ? '1 stash entry' : `${totals.stashes} stash entries`),
       totals.recoveryRefs && `${plural(totals.recoveryRefs, 'existing recovery ref')}`,
     ].filter(Boolean);
-    add('candidates', totals.reflogOnly || totals.unreachable ? 'warning' : 'info', `${plural(totals.listed, 'recovery candidate')} found`,
+    add('candidates', totals.reflogOnly || totals.unreachable ? 'warning' : 'info', `${plural(offBranch, 'recovery candidate')} found`,
       `${parts.join(', ')}.${totals.discovered > totals.listed ? ` ${totals.discovered} discovered; first ${totals.listed} listed.` : ''}`,
       'Review the candidates, choose one that contains the work you want, then create protected copies to compare and restore.');
   }
   const blocked = findings.some(item => item.severity === 'blocker');
-  const status = blocked ? 'blocked' : totals?.listed ? 'candidates-found' :
+  const status = blocked ? 'blocked' : offBranch ? 'candidates-found' :
     findings.some(item => item.severity === 'warning') ? 'needs-review' : 'no-candidates';
   if (status === 'no-candidates') {
+    const earlier = totals?.recentHistory ? ` ${plural(totals.recentHistory, 'earlier commit')} of the current branch can still be compared.` : '';
     add('nothing-flagged', 'info', 'Nothing flagged locally',
-      inspection.hasGit ? 'No reflog-only, dangling, stash or recovery-ref commits and no missing tracked files.' : 'No local history to search.',
+      inspection.hasGit ? `No reflog-only, dangling, stash or recovery-ref commits and no missing tracked files.${earlier}` : 'No local history to search.',
       'If you know something is missing, open guided recovery and compare an older commit with the current files.');
   }
   const order = { blocker: 0, warning: 1, info: 2 };
