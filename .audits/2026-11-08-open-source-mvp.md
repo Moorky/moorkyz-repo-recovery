@@ -68,3 +68,26 @@ See [release readiness](../docs/RELEASE_READINESS.md) and
 [owner decisions](../docs/OWNER_DECISIONS.md): push and CI run, Linux/macOS results,
 human review, licensing holder confirmation, private vulnerability reporting, tag and
 release, and all launch activities.
+
+## Audit follow-up
+
+An independent review agent audited `1494e1e` against the owner's focused-MVP release
+specification and returned NO-GO for all release decisions
+([report](REPO_RECOVERY_MVP_RELEASE_AUDIT_2026-11-08_1494e1e.md)). It also found that the owner had
+already pushed `dev` and merged it into `master` (`8db29fb`); CI run #1-#3 failed (Windows jobs hit
+the 25-minute limit during `npm test`, macOS failed, Ubuntu passed). Job logs require a GitHub login
+and `gh` was not authenticated, so the CI failure causes are inferred, not observed.
+
+Fixes are in `e8256c9` (code and tests) and the following documentation commit; see the
+[status table](../docs/RELEASE_READINESS.md#audit-findings-and-status). Nothing was pushed.
+
+| Check (Windows 11, Git 2.50.1, git-lfs 3.7.0) | Result |
+|---|---|
+| S0 reproduction before the fix | Control step in `tests/read-only-safety.test.mjs`: a plain `git status` on the LFS fixture changes `.git`; the product scan does not |
+| `npm test` on Node 22.18.0 (with `--test-timeout=300000`) | PASS: 94 tests, 94 pass, 0 fail/cancelled/skipped |
+| `node --test` on portable Node 22.13.0 and 24.22.2 (SHA-256 verified downloads) | PASS: 94/94 on each |
+| `npm run lint`, `npm run smoke` | PASS on all three Node versions |
+| Scan cost of the filter fix | 6 demo repositories: 4.7 s before, 8.6 s without caching, 4.8 s with the per-repository config-signature cache |
+| GitHub CI on the fixed commits | **NOT RUN** (not pushed) |
+| Independent re-audit of the fixed commits | **NOT RUN** |
+| F-13 (Advanced-mode wording) | Deferred, S3 |

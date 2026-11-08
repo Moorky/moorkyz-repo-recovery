@@ -1,81 +1,74 @@
 # Release readiness: 0.4.0 open-source MVP
 
 - **Date:** 2026-11-08
-- **Version:** 0.4.0 (`package.json`), branch `dev`, local commits only; not pushed, not tagged.
-- **Assessor:** AI assistant self-assessment. This is **not** the independent release
-  assessment or owner approval required before publication.
+- **Version:** 0.4.0 (`package.json`). Not tagged.
+- **Branches:** the owner pushed `dev` (`1494e1e`) and merged it into `master` as `8db29fb`
+  (PR #2). The audit fixes below (`e8256c9` and later) are **local commits on `dev`, not
+  pushed**, so GitHub CI has not run on them.
+- **Independent assessment:** [REPO_RECOVERY_MVP_RELEASE_AUDIT_2026-11-08_1494e1e](../.audits/REPO_RECOVERY_MVP_RELEASE_AUDIT_2026-11-08_1494e1e.md),
+  run by a separate review agent against `1494e1e`, following the owner's focused-MVP audit
+  specification. This page is the implementer's follow-up, **not** a new independent verdict.
 
-## Recommendation
+## Current recommendation
 
-**GO for local use and for an owner-approved push that runs CI. NO-GO for a public
-release announcement until the open items below are closed.** The core product
-(scan, candidates, guided recovery, verification, reports, Advanced mode) works
-and is tested on Windows across the supported Node versions. Publication evidence
-is incomplete: CI has never run, so Linux and macOS are unverified, and no human
-review has happened.
-
-## Definition of Done
-
-| Criterion | Status | Evidence |
+| Decision | Independent verdict on `1494e1e` | After the fixes (implementer's view, needs re-audit) |
 |---|---|---|
-| New user can install and start from a clean checkout | Met on Windows | `npm run smoke` starts the CLI with a new data folder; clean-clone run recorded in the [MVP audit](../.audits/2026-11-08-open-source-mvp.md) |
-| Assessment works with one primary action | Met | `tests/scan.test.mjs`, browser E2E, smoke |
-| Recovery candidates can be identified and inspected | Met | `tests/candidates.test.mjs` (independently known commits), scan E2E |
-| Manual recovery works through a simplified, safe workflow | Met | Browser E2E drives all eight steps; HTTP guided workflow test |
-| All previously supported advanced features still work | Met (automated) | All 66 pre-existing tests still pass; only the source-archive test was extended (expected entry count 6 → 8 for the new `.github/` and `docs/assets/` allowlist). Advanced mode shows the full workbench (browser E2E, page test) |
-| Real verification evidence for the final result | Met | Final verification statements, per-case report, original/backup hash checks in tests |
-| Existing and new automated tests pass | Met | 87/87 on Node 22.13.0, 22.18.0 and 24.22.2 (Windows) |
-| GitHub CI green on documented platforms | **Not met** | Workflow added; never executed (no push authorized). Linux/macOS untested |
-| Documentation matches behavior | Met (self-reviewed) | README, quick start, manual, architecture, dashboard, tooling, security, readiness updated |
-| No unresolved critical/high release blockers | **Not met** | See blockers below |
+| Public open-source MVP | NO-GO (S0 finding) | **CONDITIONAL GO as a labelled preview** once the fixes are pushed and CI is green |
+| Tagged MVP release (`v0.4.0`) | NO-GO | NO-GO until CI is green on all claimed platforms, a re-audit passes and the owner signs off |
+| LinkedIn "finished MVP" announcement | NO-GO | NO-GO until the tagged release exists |
+| `v1.0.0` | NO-GO | Not requested |
 
-## Release gates (roadmap G0–G9)
+**`master` currently contains `8db29fb`, which has the S0 LFS/filter defect fixed in `e8256c9`.**
+Until the fix is pushed, do not point users at `master`.
 
-| Gate | Status |
-|---|---|
-| G0 Product scope | Proposed (MVP scope in the [roadmap](RELEASE_ROADMAP.md#60-mvp-delivery-map-040)); owner confirmation pending |
-| G1 Data safety | Automated evidence: originals byte-identical after scan, guided recovery, cancellation, preview races and a hard kill. No human adversarial review |
-| G2 Working recovery | Met on synthetic repositories (browser and HTTP E2E, smoke) |
-| G3 Manual parity | Met by retained code paths and the unchanged pre-existing tests; no separate parity matrix document |
-| G4 Security | Partial: loopback/token/origin unchanged; scan read-only; checks still **not sandboxed** (documented, approval-gated). No CodeQL/secret scan, no human threat review |
-| G5 Quality | Partial: unit/integration/E2E/adverse tests pass on Windows; no WCAG audit, no performance budget, no Linux/macOS run |
-| G6 UX | Partial: Simple mode verified by automated browser test and screenshots; no first-time-user study |
-| G7 Docs | Met (self-reviewed) |
-| G8 GitHub | Not met: CI not run, no tag/release, settings unchanged |
-| G9 Independent review | Not started |
+## Audit findings and status
 
-## Open blockers before publication
+| ID | Sev | Finding | Status (local `dev`) | Evidence |
+|---|---|---|---|---|
+| F-01 | S0 | Scanning a Git LFS repository wrote hooks/config/`lfs/tmp` into the original `.git` | **Fixed**: every Git query disables all configured filter drivers (always including `lfs`) and points hooks at an empty location; `status` ignores submodules | `tests/read-only-safety.test.mjs` (real git-lfs fixture; control shows plain `git status` does write) |
+| F-02 | S1 | Scan ran repository-defined `filter.*.clean`/`process` commands | **Fixed** (same change; driver names passed via `GIT_CONFIG_KEY_n`, so names containing `=` are covered) | same file: marker filter never runs, `.git` byte-identical, control proves fixture sensitivity |
+| F-03 | S1 | CI: Windows jobs hung to the 25-min limit, macOS failed; Ubuntu passed | **Mitigated, unverified**: per-test 300 s timeout; server closes idle connections on shutdown; browser driver has timeouts and kills the process tree on any failure; tests use real temp paths (macOS `/var` → `/private/var`). Logs were not accessible (login required), so causes are inferred | Needs a push and a green run |
+| F-04 | S1 | One unreadable folder stopped the dashboard from starting | **Fixed**: skipped with reason `unreadable (EPERM)` | `tests/scan.test.mjs` (real ACL/chmod denial) |
+| F-05 | S2 | A rejected approval erased integrity/quality/copy records | **Fixed**: evidence is invalidated only after success or after a failure that already wrote to the working copy | `tests/scan.test.mjs` |
+| F-06 | S2 | Rescan deleted saved cases of moved projects | **Fixed**: they stay listed as unavailable with their evidence; discovered projects still get their gates reset as documented | `tests/scan.test.mjs` |
+| F-07 | S2 | After a crash, interrupted operations and partial folders were invisible | **Fixed**: pending-job marker; on restart an `interrupted` procedure, case status, partial folders and report line | `tests/interruption.test.mjs` |
+| F-08 | S2 | Approving `npm run test` also ran unseen `pretest`/`posttest` | **Fixed**: `--ignore-scripts` for npm; lifecycle scripts and project `.npmrc` shown in the preview and bound into its hash | `tests/scan.test.mjs` |
+| F-09 | S2 | Docs contradicted code/CI | **Updated** in this commit | README, SECURITY, CHANGELOG, READINESS, this page |
+| F-10 | S2 | Release ZIP built from the working tree without a commit | **Fixed**: committed files only, refuses uncommitted changes, `<version>-<sha>` name and `BUILD-INFO.txt` | `tests/source-archive.test.mjs`, `node scripts/package.mjs` |
+| F-11 | S3 | Browser E2E used `element.click()` | **Fixed**: real DevTools mouse and keyboard input | `tests/browser.test.mjs` |
+| F-12 | S3 | Submodules labelled as linked worktrees | **Fixed**: `submodule` / `contains-submodules` findings | `tests/read-only-safety.test.mjs` |
+| F-13 | S3 | Advanced mode shows percentages and "confidence" | **Deferred** (Advanced only, labelled; Simple mode has none) | — |
+| F-14 | S3 | Node validation ran with `approved:true` but no preview hash | **Fixed**: every code-running profile needs the current preview hash | `tests/scan.test.mjs` |
+| F-15 | Owner | Copyright holder, GitHub description/topics, default branch | **Owner action** | [owner decisions](OWNER_DECISIONS.md) |
 
-| Severity | Item | Next action |
-|---|---|---|
-| High | CI never ran; Linux/macOS behavior unknown (path realpaths, `/var` → `/private/var`, Chromium sandbox flags) | Owner approves pushing `dev`; fix any CI failures |
-| High | No independent human review of write paths and the release diff | Owner or reviewer walks the [quick start](QUICKSTART.md) on a fresh machine and reviews `git diff 3c58133..dev` |
-| Medium | Licensing holder name normalized to "Moorkyz" without legal confirmation | Owner confirms (see [owner decisions](OWNER_DECISIONS.md)) |
-| Medium | Private vulnerability reporting referenced in SECURITY.md is not yet enabled | Owner enables it in GitHub settings |
-| Medium | Approved checks are not sandboxed | Documented and approval-gated; isolation is deferred (roadmap R36) |
+## Verification of the fixes (Windows 11, Git 2.50.1, git-lfs 3.7.0)
+
+Recorded in the [MVP audit record](../.audits/2026-11-08-open-source-mvp.md#audit-follow-up). Linux and
+macOS results exist only for `1494e1e` from GitHub CI (Ubuntu passed, macOS failed) and must be
+re-run after pushing.
+
+## Remaining before a tagged release
+
+1. Owner pushes `dev` (or approves a push); CI must be green on Windows, Ubuntu and macOS, or
+   the README platform claims must be narrowed to what passes.
+2. Independent re-audit of the fixed SHA (at least RR-M04, RR-M16, RR-M21/22, RR-M25, RR-M31, RR-M32).
+3. Owner decisions: copyright holder, repository description/topics, default branch, private
+   vulnerability reporting.
+4. Owner runs one demo recovery from the quick start on a clean machine and signs off.
 
 ## Known limitations (accepted for the MVP)
 
-- Scans run one repository at a time (about 0.7–1 s per small repository on the test
-  machine); large portfolios take proportionally longer. No performance budget yet.
-- Candidate discovery lists at most 50 candidates, compares 25 with HEAD, reads at most
-  200 reflog-only commits and skips the object check above 250,000 objects.
-- Restore is one file at a time (≤ 64 MiB); there is no batch restore or merge.
-- Copy previews show the required bytes; free disk space is not measured.
-- Linked worktrees, external Git directories and object alternates are reported but
+- Scans run one repository at a time (about 0.8 s per small repository on the test machine).
+- Candidate discovery lists at most 50 candidates, compares 25 with HEAD, reads at most 200
+  reflog-only commits and skips the object check above 250,000 objects.
+- Restore is one file at a time (≤ 64 MiB); no batch restore or merge. Git LFS files are
+  restored as their pointer files; LFS content is not fetched.
+- Submodules, linked worktrees, external Git directories and object alternates are reported but
   not copied. SSH remotes are not supported.
-- Projects without a package `test` script need reviewed commands in Advanced mode.
+- Copy previews show the required bytes; free disk space is not measured.
+- Approved checks are **not sandboxed**. pnpm may still run pre/post scripts depending on its
+  `enable-pre-post-scripts` setting (shown in the preview).
+- Interrupted scans are not resumed; repositories not reached keep their previous status.
+- Accessibility: keyboard flow, Escape, focus return and 320/390 px layouts are tested; no
+  screen-reader or WCAG 2.2 audit.
 - Node 22 prints an `ExperimentalWarning` for the built-in SQLite module.
-- The browser E2E test needs an installed Chromium-based browser; otherwise it is
-  reported as skipped.
-- Accessibility: keyboard flow, Escape handling, focus return and 320/390 px layouts
-  are tested; there is no screen-reader or WCAG 2.2 audit.
-
-## Release artifacts
-
-`node scripts/package.mjs <folder>` builds `moorkyz-repo-recovery-0.4.0-source.zip`
-and its `.sha256` from the allowlisted sources (no Git metadata, private inputs,
-audits or runtime data). The checksum recorded in the [MVP audit](../.audits/2026-11-08-open-source-mvp.md)
-applies only to the tree it was built from; rebuild from the final reviewed commit
-for a release. Screenshots in `docs/assets/` come from the real UI on the synthetic
-demo with neutral paths.

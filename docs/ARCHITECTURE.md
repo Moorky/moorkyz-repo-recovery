@@ -54,8 +54,10 @@ Browser (website/)                         Node process (src/)
 
 - Each repository record holds `records` (one entry per gate/procedure), `scan`,
   `selectedCandidate`, `recoveryTargets`, case notes, lifecycle and procedures.
-- Starting an action deletes the records it invalidates *before* it runs and saves
-  that state. A crash therefore leaves the gate missing, never falsely passed.
+- A `pendingJob` marker is saved before an action starts. Records the action invalidates
+  are cleared only after success, or after a failure that already wrote to the working copy
+  (tracked per worker by `write-guard.mjs`). On restart a leftover marker becomes an
+  `interrupted` procedure, clears possibly affected evidence and names partial copy folders.
 - Every finished action is archived as `attempts/<uuid>.json` (written once).
 - The job object lives in memory only; after a restart no job is reported as running
   or successful. Partial copies stay on disk and are never reused.
@@ -68,7 +70,7 @@ Browser (website/)                         Node process (src/)
 | Originals | Never a write target; snapshots compared before and after protected actions |
 | Copies | Must be new, outside the scan root, project and data folders, not linked/aliased |
 | Paths | Relative, no traversal, no `.git`, no reserved names, no links in restore targets |
-| Git | `GIT_OPTIONAL_LOCKS=0`, maintenance and fsmonitor disabled, Git env overrides removed, hooks disabled for ref writes |
+| Git | `GIT_OPTIONAL_LOCKS=0`, maintenance and fsmonitor disabled, Git env overrides removed, all configured filter drivers (including LFS) disabled, hooks path pointed at nothing, `status --ignore-submodules=all` |
 | Project code | Runs only after preview and approval, in the working copy, with timeouts and output caps; **not sandboxed** |
 | Remotes | Never during scan; Advanced remote import needs separate contact permission and approval |
 

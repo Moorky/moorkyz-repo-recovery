@@ -24,7 +24,8 @@ changing the original.
 ## Safety promise
 
 - The scan reads Git metadata only. It never writes to a project, runs project code,
-  installs packages or contacts a remote.
+  installs packages or contacts a remote. Repository-defined Git filter drivers
+  (including Git LFS) and hooks are disabled for every Git command the tool runs.
 - Every change is previewed and needs explicit approval. Changes are applied only to
   a verified disposable working copy. Originals and backups are re-hashed and must be
   unchanged before a result is accepted.
@@ -64,9 +65,10 @@ full demo walkthrough, including the lost-commit recovery.
 | Node package tests; reviewed Python, PowerShell, .NET and nested commands (Advanced) | Moving the recovered result into your original | Linked-worktree, external-gitdir and object-alternates copies (reported, not copied) |
 | Optional HTTPS/local remote import into a new namespace of the working copy (Advanced) | SSH or custom remote transports | AI-generated reconstruction or recovery-probability scores |
 
-Platforms: verified on Windows 11 with Node 22.13.0, 22.18.0 and 24.22.2. Linux and
-macOS run in the configured CI matrix; see [readiness](docs/READINESS.md) for the
-latest recorded results.
+Platforms: verified locally on Windows 11 with Node 22.13.0, 22.18.0 and 24.22.2. GitHub CI
+on commit `1494e1e` passed on Ubuntu but failed on macOS and timed out on Windows; fixes are
+committed but have not run in CI yet. Treat Linux and macOS as unverified until CI is green;
+see [release readiness](docs/RELEASE_READINESS.md).
 
 ## Commands
 
@@ -100,10 +102,11 @@ Set `RECOVERY_BROWSER` to a browser executable to choose one.
 
 ## Status
 
-Version 0.4.0 is the open-source MVP candidate. It is not a v1.0 release and no
-release tag has been published. See [release readiness](docs/RELEASE_READINESS.md)
-for the evidence and the remaining owner decisions, and the
-[changelog](CHANGELOG.md) for changes.
+Version 0.4.0 is the open-source MVP **preview**. It is not a v1.0 release and no
+release tag has been published. An independent audit found a data-safety defect in the
+first 0.4.0 commit (scans of Git LFS repositories wrote into `.git`); it is fixed on `dev`.
+See [release readiness](docs/RELEASE_READINESS.md) for the audit, fixes and remaining owner
+decisions, and the [changelog](CHANGELOG.md) for changes.
 
 ## Project layout
 

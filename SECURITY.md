@@ -37,13 +37,23 @@ changelog entry after the test suite passes.
 **Scan repositories** and the `assess` CLI only read originals: directory names,
 root manifests (`package.json` parsed as data, max 1 MiB), and Git through
 `readGit` with `GIT_OPTIONAL_LOCKS=0`, fsmonitor and automatic maintenance
-disabled, no pager and inherited Git path variables removed. Commands are
+disabled, no pager and inherited Git path/config variables removed. Every Git
+command also disables all filter drivers configured in any config scope (always
+including `lfs`, so git-lfs cannot install hooks or write `.git/lfs`), points
+`core.hooksPath` at a location that does not exist and clears `diff.external`;
+`git status` runs with `--ignore-submodules=all`. Commands are
 `rev-parse`, `status`, `show-ref`, `worktree list`, `ls-files`, `for-each-ref`,
 `rev-list`, `stash list`, `reflog show`, `log`, `show -s`, `diff --name-status`,
 `ls-tree`, `count-objects` and `fsck --connectivity-only` (no `--lost-found`,
 skipped above 250,000 objects). Tests prove the full byte snapshot of every demo
-original, including `.git`, is identical after a scan. Ordinary reads can still
-update filesystem access times; this is not forensic acquisition.
+original, including `.git`, is identical after a scan, including a real Git LFS
+repository and a repository whose own filter would write a marker file. Ordinary reads can still
+update filesystem access times; this is not forensic acquisition. Unreadable folders
+are skipped and listed with a reason.
+
+Approved npm package checks run with `--ignore-scripts`, so `pre`/`post` lifecycle
+scripts do not run; they and the project `.npmrc` are shown in the preview and bound
+into its hash. pnpm may run lifecycle scripts depending on its own settings.
 
 The owner-requested `PROJECT_RECOVERY_ASSESSMENT.md` is a dated project-level
 report kept here explicitly, excluded from the root-file allowlist for the

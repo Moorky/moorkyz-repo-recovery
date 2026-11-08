@@ -1,6 +1,23 @@
 # Changelog
 
-## 0.4.0 - 2026-11-08 (open-source MVP candidate; not tagged)
+## 0.4.0 - 2026-11-08 (open-source MVP preview; not tagged)
+
+### Fixed after the independent audit (local `dev`, after `1494e1e`)
+
+- **Data safety:** scans of Git LFS repositories wrote hooks, config and `lfs/tmp` into the
+  original `.git`, and repository-defined filter commands ran during `git status`. Every Git
+  command now disables all configured filter drivers and hooks; `status` ignores submodules.
+- One unreadable folder no longer stops the dashboard from starting; it is skipped with a reason.
+- A refused or stale approval no longer erases existing integrity, check or copy records.
+- Operations interrupted by a crash are reported after restart (case status, procedure,
+  partial folders, report line).
+- Rescan keeps saved cases whose folders disappeared (shown as unavailable).
+- npm checks run with `--ignore-scripts`; previews list lifecycle scripts and `.npmrc`.
+- Every code-running validation profile requires the current preview hash.
+- Release ZIPs contain committed files only, refuse uncommitted changes and record the commit.
+- Submodules are reported explicitly; the browser E2E test uses real mouse/keyboard input.
+- CI hardening: per-test timeouts, server closes idle connections, browser cleanup, real
+  temporary paths on macOS.
 
 ### Added
 

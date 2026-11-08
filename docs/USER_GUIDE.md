@@ -84,7 +84,9 @@ each one in turn. For every Git project it reads:
   current branch so you can compare an older version.
 
 The scan never writes to a project, runs project code, installs packages or
-contacts a remote. Progress shows `Scanning 3 of 6: <project>`. **Cancel scan**
+contacts a remote. Git filter drivers configured by a repository (for example Git
+LFS) and hooks are disabled for every Git command, so they cannot run or write into
+`.git`. Folders it cannot read are skipped and listed. Progress shows `Scanning 3 of 6: <project>`. **Cancel scan**
 stops after the current project; finished projects keep their saved results.
 Projects whose copies are already verified keep their case steps; their new scan
 result is stored alongside instead of resetting the case.
@@ -96,7 +98,8 @@ result is stored alongside instead of resetting the case.
 | Not scanned | No saved inspection | Scan repositories |
 | Blocked: Git problems found | Git queries failed, HEAD is unreadable or objects are missing | Protect copies; look for the missing data in other copies before any repair |
 | Recovery candidates found | Reflog-only, dangling, stash or recovery-ref commits exist | Review and choose a candidate |
-| Needs review | Uncommitted work, missing tracked files, no `.git`, linked worktree | Preserve the work before anything else |
+| Needs review | Uncommitted work, missing tracked files, no `.git`, linked worktree, submodules | Preserve the work before anything else |
+| Interrupted: review before continuing | The dashboard stopped during an operation | Read the message (partial copy folders are named and never reused), then retry with a fresh preview |
 | No local candidates found | Nothing flagged locally | Clean is not complete: compare an older commit if you know something is missing |
 | Copies verified, Files restored, Checks passed/failed, Recovery validated, Completed | Progress of a guided case | Continue guided recovery |
 

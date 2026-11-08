@@ -96,6 +96,7 @@ roadmap items still need owner answers before the related tasks can close:
 | Distribution: keep `private: true` and Node+Git quick-start, or another package | R63 | Default kept: no npm publishing. `scripts/package.mjs` builds a source ZIP + SHA-256 for a GitHub release if approved. |
 | Optional batch recovery and scheduled read-only checks | R38 / R39 | Deferred out of the MVP. |
 | Test isolation approach for any unattended validation | R36 | Default kept: no unattended execution; checks remain unsandboxed and approval-gated. |
-| Publication: push branch, run CI, merge to `master`, tag `v0.4.0`, GitHub release | R60 / R65 | Local commits only on `dev` (owner requested local commits). **Push, CI run, merge, tag and release need explicit approval.** |
-| GitHub settings: description/topics, private vulnerability reporting (linked from SECURITY.md and the issue template), branch protection | R64 | Not changed. **Owner action.** |
+| Publication: push branch, run CI, merge to `master`, tag `v0.4.0`, GitHub release | R60 / R65 | 2026-11-08: the owner pushed `dev` (`1494e1e`) and merged PR #2 into `master` (`8db29fb`); CI failed on Windows/macOS. The independent audit then found an S0 defect, fixed in local `dev` commits that are **not pushed**. **Push, a green CI run, re-audit, tag and release need explicit approval.** |
+| Default branch | R64 | `master` holds `8db29fb`, which still has the S0 defect until the fixes are merged. Decide whether `master` stays the default and when to merge. **Owner action.** |
+| GitHub settings: description/topics, private vulnerability reporting (linked from SECURITY.md and the issue template), branch protection | R64 | The auditor saw an outdated description and no topics. Not changed. **Owner action.** |
 | LinkedIn announcement, video, case study | R71–R73 | Not started. **Owner action.** |

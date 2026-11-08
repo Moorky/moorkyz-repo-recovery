@@ -109,9 +109,11 @@ node scripts/package.mjs ../release                    # existing folder outside
 branch, overwritten files, deleted object, clean, no `.git`, empty folder); see the
 [quick start](QUICKSTART.md). `screenshots.mjs` runs the demo through the browser
 driver; pass a neutral work folder so no personal path appears in the images.
-`package.mjs` writes `moorkyz-repo-recovery-<version>-source.zip` (the same allowlist
-as the dashboard source download: no Git metadata, private inputs, audits, runtime
-data or secrets files) and a `.sha256` file, refusing to overwrite.
+`package.mjs` writes `moorkyz-repo-recovery-<version>-<short-sha>-source.zip` from
+**committed files only** (the same allowlist as the dashboard source download: no Git
+metadata, private inputs, audits, runtime data or secrets files) plus `BUILD-INFO.txt`
+naming the commit, and a `.sha256` file. It refuses to run with uncommitted or untracked
+changes and never overwrites.
 
 ## Continuous integration
 

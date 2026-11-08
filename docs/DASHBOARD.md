@@ -25,7 +25,15 @@ gate (later gates are invalidated, exactly like **Inspect**). A repository with 
 (`scan.gatesUpdated: false`).
 
 Projects no longer found on disk keep their saved evidence and are shown as
-*Folder no longer found* (read-only) instead of being deleted.
+*Folder no longer found* (read-only) instead of being deleted, also after **Rescan**.
+Folders that cannot be read are skipped and listed with the reason `unreadable`.
+
+If the dashboard stops while an operation runs, the next start records that
+operation as `interrupted`, shows the case as *Interrupted: review before
+continuing*, names any partial copy folders (never reused) and clears evidence the
+operation may have changed. Evidence is otherwise cleared only when an operation
+succeeds, or fails after it already wrote to the working copy; a refused approval
+leaves existing records intact.
 
 ### Statuses
 
@@ -37,8 +45,9 @@ Scan statuses come from `src/dashboard/findings.mjs`; case statuses from
 | Not scanned | No inspection saved |
 | Blocked: Git problems found | A blocker finding: failed Git query, unreadable HEAD (with commits present), missing/broken objects, or a scan error |
 | Recovery candidates found | At least one reflog-only, dangling, stash or recovery-ref commit |
-| Needs review | Warnings only: uncommitted work, missing tracked files, staged deletions, conflicts, no `.git`, linked worktree |
+| Needs review | Warnings only: uncommitted work, missing tracked files, staged deletions, conflicts, no `.git`, linked worktree, submodule or contains submodules |
 | No local candidates found | No blocker or warning; earlier branch commits may still be listed |
+| Interrupted: review before continuing | The dashboard stopped during an operation on this case |
 | Copies verified → Files restored → Checks passed / Checks failed → Recovery validated → Completed and handed off | Case progress, which outranks the scan label |
 
 ### Candidates

@@ -43,8 +43,13 @@ and [pending owner decisions](OWNER_DECISIONS.md).
 - `npm run lint` and `npm run smoke` passed on all three Node versions.
 - A hard process kill during copy acquisition left the partial backup unverified,
   refused reuse of its destination and left the original byte-identical.
-- Linux and macOS: **not run**. The CI matrix is configured but has never executed
-  because no push was authorized. Treat those platforms as unverified.
+- Linux and macOS: GitHub CI on `1494e1e` (pushed by the owner) passed on Ubuntu, failed on
+  macOS and timed out on Windows; logs were not accessible. The fixes after the independent
+  audit (see [release readiness](RELEASE_READINESS.md)) have not run in CI yet. Treat Linux
+  and macOS as unverified.
+- Independent audit of `1494e1e`: NO-GO because scans of Git LFS repositories wrote into the
+  original `.git` (S0). Fixed on `dev`; regression tests use a real git-lfs repository and a
+  marker-writing filter.
 - Manual browser walkthrough of the demo (scan → handoff) in an integrated browser;
   the Blob download event is not observable there, so the report endpoint is
   verified through HTTP tests instead.
