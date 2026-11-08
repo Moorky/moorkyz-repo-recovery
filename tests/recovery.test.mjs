@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { inventory, projectRoot } from '../src/recovery.mjs';
 
 function fixture(t) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'moorkyz-recovery-test-'));
+  const folder = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'moorkyz-recovery-test-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   return folder;
 }

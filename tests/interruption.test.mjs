@@ -13,7 +13,7 @@ import { createDemoPortfolio } from '../scripts/demo.mjs';
 const server = fileURLToPath(new URL('../src/dashboard/server.mjs', import.meta.url));
 
 function temporary(t) {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-interrupt-'));
+  const base = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-interrupt-'));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   return base;
 }
@@ -84,7 +84,7 @@ async function launch(root, data) {
     child.once('exit', resolve);
     child.kill('SIGKILL');
   });
-  return { api, settle, kill, child, output: () => output };
+  return { api, settle, kill, child, output: () => output, origin, token };
 }
 
 test('killing the server during acquisition never leaves a copy marked verified and the original stays unchanged', { timeout: 180_000 }, async t => {
@@ -124,6 +124,12 @@ test('killing the server during acquisition never leaves a copy marked verified 
     assert.equal(snapshot(copies.workingCopy).fingerprint, before);
   } else {
     assert.ok(!repo.procedures.some(item => item.action === 'acquire-apply' && item.status === 'completed'));
+    const interrupted = repo.procedures.find(item => item.action === 'acquire-apply' && item.status === 'interrupted');
+    assert.ok(interrupted, 'the killed acquisition is recorded as interrupted after restart');
+    assert.ok(repo.interrupted, 'the case is flagged for review');
+    if (fs.existsSync(copies.backup)) assert.ok(repo.interrupted.partial.includes(copies.backup), 'partial folders are named');
+    const report = await (await fetch(`${app.origin}/api/report.md?repository=${id}`, { headers: { 'X-Recovery-Token': app.token } })).text();
+    assert.match(report, /INTERRUPTED operation/);
     assert.equal((await app.api('/api/task', { repositoryId: id, action: 'acquire-preview', ...copies })).status, 202);
     const retry = await app.settle();
     if (fs.existsSync(copies.backup)) {

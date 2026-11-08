@@ -6,6 +6,7 @@ import { collectRecoveryEvidence } from './report.mjs';
 import { targetFile, planHash } from './files.mjs';
 import { checkPlan, runChecks } from './checks.mjs';
 import { checkObjects, discoverCandidates } from './candidates.mjs';
+import { beginWrite } from './write-guard.mjs';
 
 const markers = ['.git', 'package.json', 'pyproject.toml', 'Cargo.toml', 'PROJECT_MANIFEST.json'];
 const skip = new Set(['.git', 'node_modules', '.venv', '.next', 'data', 'dist', 'build', 'bin', 'obj']);
@@ -22,8 +23,15 @@ export function discover(root) {
   if (!fs.statSync(root).isDirectory()) throw new Error('Directory root is not a folder.');
   const repositories = [];
   const skipped = [];
-  function add(folder) {
-    const names = entries(folder).map(entry => entry.name);
+  // Unreadable child folders are skipped with a reason; they must not stop discovery of the others.
+  function readable(folder) {
+    try { return entries(folder); }
+    catch (error) {
+      skipped.push({ path: folder, reason: `unreadable (${error.code || error.message})` });
+      return null;
+    }
+  }
+  function add(folder, names) {
     repositories.push({
       id: digest(folder).slice(0, 24),
       name: path.relative(root, folder) || path.basename(folder),
@@ -36,22 +44,24 @@ export function discover(root) {
   }
   const rootEntries = entries(root);
   const rootIsProject = rootEntries.some(entry => markers.includes(entry.name));
-  if (rootIsProject) add(root);
+  if (rootIsProject) add(root, rootEntries.map(entry => entry.name));
   for (const entry of rootEntries) {
     const folder = path.join(root, entry.name);
     if (entry.isSymbolicLink()) {
       skipped.push({ path: folder, reason: 'link/junction not followed' });
     } else if (entry.isDirectory() && !entry.name.startsWith('.') && !skip.has(entry.name.toLowerCase())) {
-      const children = entries(folder);
+      const children = readable(folder);
+      if (!children) continue;
       const childIsProject = children.some(item => markers.includes(item.name));
-      if ((!rootIsProject && childIsProject) || children.some(item => item.name === '.git')) add(folder);
+      if ((!rootIsProject && childIsProject) || children.some(item => item.name === '.git')) add(folder, children.map(item => item.name));
       else if (!rootIsProject) skipped.push({ path: folder, reason: 'ordinary directory; no independent project marker' });
-      for (const child of entries(folder)) {
+      for (const child of children) {
         if (!child.isDirectory() || child.name.startsWith('.') || skip.has(child.name.toLowerCase())) continue;
         const nested = path.join(folder, child.name);
-        const nestedEntries = entries(nested);
+        const nestedEntries = readable(nested);
+        if (!nestedEntries) continue;
         if (nestedEntries.some(item => item.name === '.git') ||
-          (!rootIsProject && !childIsProject && nestedEntries.some(item => markers.includes(item.name)))) add(nested);
+          (!rootIsProject && !childIsProject && nestedEntries.some(item => markers.includes(item.name)))) add(nested, nestedEntries.map(item => item.name));
       }
     }
   }
@@ -143,7 +153,7 @@ export function inspect(repository) {
   const hasGit = fs.existsSync(path.join(repository, '.git'));
   const commands = hasGit ? [
     ['rev-parse', '--show-toplevel'], ['rev-parse', '--verify', 'HEAD'],
-    ['status', '--porcelain=v1', '--untracked-files=normal'],
+    ['status', '--porcelain=v1', '--untracked-files=normal', '--ignore-submodules=all'],
     ['show-ref', '--head'], ['worktree', 'list', '--porcelain'],
   ].map(args => readGit(repository, args)) : [];
   const head = commands.find(command => command.args[0] === 'rev-parse' && command.args.includes('HEAD'));
@@ -151,10 +161,15 @@ export function inspect(repository) {
     commands.some(command => !good(command)) ? 'inspection-errors' :
       commands.find(command => command.args[0] === 'status').stdout ? 'uncommitted-work' : 'clean-checkout';
   const gitPoints = !hasGit ? 0 : commands.filter(good).length / commands.length * 50;
-  const linkedWorktree = hasGit && fs.statSync(path.join(repository, '.git')).isFile();
+  const gitFile = hasGit && fs.statSync(path.join(repository, '.git')).isFile();
+  // A submodule's .git file points into its parent's .git/modules; anything else is a linked worktree.
+  const pointer = gitFile ? fs.readFileSync(path.join(repository, '.git'), 'utf8').slice(0, 4096) : '';
+  const submodule = gitFile && /[\\/]modules[\\/]/.test(pointer);
+  const linkedWorktree = gitFile && !submodule;
+  const containsSubmodules = hasGit && fs.existsSync(path.join(repository, '.gitmodules'));
   const objects = hasGit ? checkObjects(repository) : null;
   return {
-    at: new Date().toISOString(), measured, hasGit, linkedWorktree, commands, state,
+    at: new Date().toISOString(), measured, hasGit, linkedWorktree, submodule, containsSubmodules, commands, state,
     recoveryEvidence: hasGit ? collectRecoveryEvidence(repository) : null,
     objects,
     candidates: hasGit ? discoverCandidates(repository, { dangling: objects.dangling }) : null,
@@ -288,9 +303,10 @@ export function qualityPreview(source, preservation, input) {
 export async function quality(source, preservation, profile, approved, options = {}) {
   if (profile !== 'documentation' && approved !== true) throw new Error('Executing repository code requires explicit approval.');
   const preview = qualityPreview(source, preservation, { ...options, profile });
-  if ((profile === 'custom' || options.planHash) && options.planHash !== preview.planHash) throw new Error('Approve the unchanged validation preview.');
+  if ((profile !== 'documentation' || options.planHash) && options.planHash !== preview.planHash) throw new Error('Approve the unchanged validation preview.');
   const folder = preservation.workingCopy;
   const measured = preview.measured;
+  if (profile !== 'documentation') beginWrite();
   const results = profile === 'documentation' ? [localLinks(folder)] : await runChecks(preview, options.signal);
   const after = ensurePreserved(source, preservation);
   return {

@@ -1,6 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { runProcedure } from './procedures.mjs';
 import { inspect } from './engine.mjs';
+import { writeStarted } from './write-guard.mjs';
 
 const controller = new AbortController();
 parentPort.on('message', message => { if (message.cancel === true) controller.abort(); });
@@ -27,5 +28,5 @@ try {
     parentPort.postMessage({ result });
   }
 } catch (error) {
-  parentPort.postMessage({ error: error.message });
+  parentPort.postMessage({ error: error.message, wrote: writeStarted() });
 } finally { parentPort.close(); }

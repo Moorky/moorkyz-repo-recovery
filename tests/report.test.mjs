@@ -9,7 +9,7 @@ import { inspect, snapshot } from '../src/dashboard/engine.mjs';
 import { renderReport } from '../src/dashboard/report.mjs';
 
 function fixture(t) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-report-'));
+  const folder = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-report-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const root = path.join(folder, 'portfolio');
   const repository = path.join(root, 'outer', 'nested');

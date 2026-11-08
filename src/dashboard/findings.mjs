@@ -41,6 +41,14 @@ export function assessFindings(inspection, error = null) {
     add('linked-worktree', 'warning', 'Linked worktree: Git data lives elsewhere', '.git is a file that points to another repository.',
       'Preserve the main repository that owns this worktree; this tool cannot certify copies of linked worktrees.');
   }
+  if (inspection.submodule) {
+    add('submodule', 'warning', 'Git submodule: history lives in the parent repository', '.git is a file that points into a parent .git/modules folder.',
+      'Preserve the parent repository; copying a submodule on its own is not supported.');
+  }
+  if (inspection.containsSubmodules) {
+    add('contains-submodules', 'warning', 'Contains Git submodules (not supported for copying)', 'A .gitmodules file is present; submodule status is not inspected.',
+      'Protecting copies is refused while submodules are checked out. Preserve this repository with your own tools (for example a full folder backup) before any repair.');
+  }
   const failed = [...(inspection.commands ?? []), ...Object.values(evidence?.commands ?? {})].filter(command => !good(command));
   if (inspection.state === 'unborn-or-damaged') {
     const headError = inspection.commands?.find(command => command.args.includes('HEAD'));

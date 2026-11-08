@@ -9,7 +9,7 @@ import { checkObjects, discoverCandidates, rankCandidates } from '../src/dashboa
 import { assessFindings, limitations } from '../src/dashboard/findings.mjs';
 
 function sandbox(t) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-candidates-'));
+  const folder = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-candidates-'));
   const hooks = path.join(folder, 'no-hooks');
   fs.mkdirSync(hooks);
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { containedBy } from '../recovery.mjs';
+import { beginWrite } from './write-guard.mjs';
 
 export const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 export const planHash = plan => sha256(JSON.stringify(plan));
@@ -52,6 +53,7 @@ export function replaceFile(root, relative, bytes, expectedHash, mode) {
   const file = targetFile(root, relative, { missingParents: true });
   const before = readTarget(file);
   if ((before === null ? null : sha256(before)) !== expectedHash) throw new Error('Target changed after preview; preview again.');
+  beginWrite();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   targetFile(root, relative);
   const temporary = `${file}.recovery-${crypto.randomUUID()}.tmp`;

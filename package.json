@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node src/dashboard/server.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-timeout=300000 tests/*.test.mjs",
     "lint": "node scripts/check-project.mjs",
     "smoke": "node scripts/smoke.mjs",
     "demo": "node scripts/demo.mjs",

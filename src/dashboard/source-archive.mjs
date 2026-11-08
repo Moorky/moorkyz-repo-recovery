@@ -19,7 +19,7 @@ function crc32(bytes) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-export function sourceArchive(root) {
+export function sourceArchive(root, { tracked = null, extra = [] } = {}) {
   const files = [];
   let size = 0;
   function visit(folder, relative = '') {
@@ -30,7 +30,8 @@ export function sourceArchive(root) {
       if (entry.isDirectory()) {
         if ((relative === '' && folders.has(entry.name)) ||
           (relative !== '' && !['sources', 'node_modules', '.git', '.archive', '.logs'].includes(entry.name) && !entry.name.startsWith('.'))) visit(file, name);
-      } else if (entry.isFile() && (assets.has(name) || screenshot(name) || (relative === '' ? rootFiles.has(entry.name) : !entry.name.startsWith('.') && textExtensions.has(path.extname(entry.name))))) {
+      } else if (entry.isFile() && (!tracked || tracked.has(name.split(path.sep).join('/'))) &&
+        (assets.has(name) || screenshot(name) || (relative === '' ? rootFiles.has(entry.name) : !entry.name.startsWith('.') && textExtensions.has(path.extname(entry.name))))) {
         const length = fs.statSync(file).size;
         size += length;
         if (length > 8 * 1024 * 1024 || size > 32 * 1024 * 1024) throw new Error('Source archive exceeds the safe export size limit.');
@@ -40,6 +41,7 @@ export function sourceArchive(root) {
     }
   }
   visit(root);
+  for (const item of extra) files.push({ name: `moorkyz-repo-recovery/${item.name}`, bytes: Buffer.from(item.bytes) });
   const local = [];
   const central = [];
   let offset = 0;

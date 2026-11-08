@@ -21,7 +21,7 @@ export function checkPlan(root, options, defaults) {
       fs.realpathSync(cwd) !== cwd || !fs.statSync(cwd).isDirectory()) throw new Error('Check directory must be an unlinked working-copy directory, outside Git metadata.');
     const args = command.args ?? [];
     if (!Array.isArray(args) || args.length > 50 || args.some(arg => typeof arg !== 'string' || arg.length > 4096 || /[\0\r\n]/.test(arg))) throw new Error('Check args must be an array of at most 50 plain strings.');
-    let executable, argv, declared;
+    let executable, argv, declared, lifecycleScripts, projectNpmrc;
     if (command.runner === 'package') {
       if (!['npm', 'pnpm'].includes(command.manager) || !/^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,80}$/.test(command.script ?? '') || args.length) {
         throw new Error('Package checks require npm/pnpm, a safe script name and no shell arguments.');
@@ -31,8 +31,15 @@ export function checkPlan(root, options, defaults) {
       const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
       if (typeof manifest.scripts?.[command.script] !== 'string') throw new Error(`Missing declared package script: ${command.script}`);
       declared = manifest.scripts[command.script];
+      // npm would also run pre<script>/post<script>; --ignore-scripts skips them but still runs the named script.
+      const lifecycle = [`pre${command.script}`, `post${command.script}`].filter(name => typeof manifest.scripts[name] === 'string');
+      lifecycleScripts = Object.fromEntries(lifecycle.map(name => [name, manifest.scripts[name]]));
+      const npmrc = path.join(cwd, '.npmrc');
+      projectNpmrc = fs.existsSync(npmrc) && fs.statSync(npmrc).isFile() ? fs.readFileSync(npmrc, 'utf8').slice(0, 4096) : undefined;
+      const extra = command.manager === 'npm' ? ' --ignore-scripts' : '';
       executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : command.manager;
-      argv = process.platform === 'win32' ? ['/d', '/s', '/c', `${command.manager}.cmd run ${command.script}`] : ['run', command.script];
+      argv = process.platform === 'win32' ? ['/d', '/s', '/c', `${command.manager}.cmd run ${command.script}${extra}`]
+        : ['run', command.script, ...(extra ? ['--ignore-scripts'] : [])];
     } else {
       const file = targetFile(cwd, command.file, { mustExist: true });
       if (command.runner === 'node' && /\.(mjs|cjs|js)$/.test(file)) { executable = process.execPath; argv = [file, ...args]; }
@@ -47,7 +54,10 @@ export function checkPlan(root, options, defaults) {
       else if (command.runner === 'dotnet' && /\.(csproj|fsproj|sln|slnx)$/i.test(file)) { executable = 'dotnet'; argv = ['test', file, '--no-restore', ...args]; }
       else throw new Error('Supported runners: package, node (.js/.mjs/.cjs), python (.py), powershell (.ps1), dotnet (project/solution).');
     }
-    return { name: command.name.trim(), kind: command.kind, executable, args: argv, cwd, ...(declared === undefined ? {} : { declared }) };
+    return { name: command.name.trim(), kind: command.kind, executable, args: argv, cwd, ...(declared === undefined ? {} : { declared }),
+      ...(lifecycleScripts && Object.keys(lifecycleScripts).length ? { lifecycleScripts,
+        lifecycleNote: command.manager === 'npm' ? 'Skipped (--ignore-scripts).' : 'pnpm may run these depending on its enable-pre-post-scripts setting.' } : {}),
+      ...(projectNpmrc === undefined ? {} : { projectNpmrc }) };
   });
   return { commands: resolved, timeoutSeconds,
     warning: 'Approved repository code is NOT sandboxed. Review scripts/arguments; they may access absolute paths/network. No dependencies are installed by the workbench.' };

@@ -7,6 +7,7 @@ import { readGit } from '../recovery.mjs';
 import { ensurePreserved, snapshot } from './engine.mjs';
 import { relativeFile, targetFile, readTarget, replaceFile, sha256, planHash } from './files.mjs';
 import { discoverCandidates } from './candidates.mjs';
+import { beginWrite } from './write-guard.mjs';
 
 export function gitResult(folder, args, options) {
   const result = readGit(folder, args, options);
@@ -147,6 +148,7 @@ export function rescueCommit(repository, action, input) {
   const hash = planHash(preview);
   if (action === 'rescue-preview') return { at: new Date().toISOString(), ...preview, planHash: hash };
   if (input.approved !== true || input.planHash !== hash) throw new Error('Approve the unchanged recovery-branch preview.');
+  beginWrite();
   withoutHooks(folder, ['update-ref', '--create-reflog', ref, commit, '0'.repeat(commit.length)]);
   ensurePreserved(repository.path, repository.records.preservation);
   return { at: new Date().toISOString(), ...preview, planHash: hash, passed: true,

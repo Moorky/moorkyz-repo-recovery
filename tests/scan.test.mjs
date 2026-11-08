@@ -9,7 +9,7 @@ import { startDashboard } from '../src/dashboard/server.mjs';
 import { createDemoPortfolio } from '../scripts/demo.mjs';
 
 function workspace(t) {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-scan-'));
+  const base = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-scan-'));
   const closers = [];
   t.after(async () => {
     for (const close of closers.reverse()) await close();
@@ -161,6 +161,116 @@ test('scan cancellation is confirmed, keeps finished results, and a retry comple
   assert.equal(retried.job.progress.done, 12);
   assert.ok(retried.repositories.every(repo => repo.scan.status !== 'not-scanned'));
   assert.deepEqual(fingerprints(root), before);
+});
+
+test('an unreadable folder is skipped with a reason; the dashboard still starts and scans the rest', async t => {
+  const w = workspace(t);
+  const root = path.join(w.base, 'mixed');
+  fs.mkdirSync(root);
+  for (const name of ['alpha', 'beta']) {
+    const folder = path.join(root, name);
+    fs.mkdirSync(folder);
+    assert.equal(readGit(folder, ['init', '-q']).exitCode, 0);
+  }
+  const locked = path.join(root, 'locked');
+  fs.mkdirSync(path.join(locked, 'inner'), { recursive: true });
+  const { spawnSync } = await import('node:child_process');
+  const lock = process.platform === 'win32'
+    ? () => spawnSync('icacls', [locked, '/deny', `${process.env.USERNAME}:(RX)`], { windowsHide: true })
+    : () => fs.chmodSync(locked, 0o000);
+  const unlock = process.platform === 'win32'
+    ? () => spawnSync('icacls', [locked, '/remove:d', process.env.USERNAME], { windowsHide: true })
+    : () => fs.chmodSync(locked, 0o755);
+  lock();
+  t.after(unlock);
+  let readableAnyway = false;
+  try { fs.readdirSync(locked); readableAnyway = true; } catch { /* expected */ }
+  if (readableAnyway) {
+    unlock();
+    return t.skip('this account can still read the locked folder (administrator/root)');
+  }
+  try {
+    const { api, settle } = await open(w, root);
+    const state = await api('/api/state');
+    assert.deepEqual(state.repositories.map(repo => repo.name).sort(), ['alpha', 'beta']);
+    assert.ok(state.skipped.some(item => item.path === locked && /unreadable/.test(item.reason)), JSON.stringify(state.skipped));
+    await api('/api/scan', {}, 202);
+    const scanned = await settle();
+    assert.equal(scanned.job.status, 'completed');
+    assert.equal(scanned.job.progress.done, 2);
+  } finally {
+    unlock();
+  }
+});
+
+test('a rejected approval keeps existing evidence; rescan keeps cases whose folders disappeared', async t => {
+  const w = workspace(t);
+  const demo = createDemoPortfolio(path.join(w.base, 'demo'));
+  const expected = demo.expected['lost-commits'];
+  const { api, settle, task } = await open(w, demo.root);
+  await api('/api/scan', {}, 202);
+  await settle();
+  const id = (await api('/api/state')).repositories.find(repo => repo.name === 'lost-commits').id;
+  const copies = { backup: path.join(w.base, 'backup'), workingCopy: path.join(w.base, 'working') };
+  const preview = (await task(id, 'acquire-preview', copies))['acquire-preview'];
+  await task(id, 'acquire-apply', { ...copies, approved: true, planHash: preview.planHash });
+  await task(id, 'integrity');
+  const gates = async () => Object.keys(await api(`/api/evidence/${id}`)).filter(key => ['inspection', 'preservation', 'integrity'].includes(key)).sort();
+  assert.deepEqual(await gates(), ['inspection', 'integrity', 'preservation']);
+
+  await api('/api/task', { repositoryId: id, action: 'restore-apply', ref: expected.lostCommit, file: expected.file, approved: true, planHash: 'stale' }, 202);
+  assert.equal((await settle()).job.status, 'failed');
+  assert.deepEqual(await gates(), ['inspection', 'integrity', 'preservation'], 'a refused restore must not erase integrity or copy records');
+  const other = { backup: path.join(w.base, 'backup-2'), workingCopy: path.join(w.base, 'working-2') };
+  await api('/api/task', { repositoryId: id, action: 'acquire-apply', ...other, approved: true, planHash: 'stale' }, 202);
+  assert.equal((await settle()).job.status, 'failed');
+  const evidence = await api(`/api/evidence/${id}`);
+  assert.equal(evidence.preservation.backup, fs.realpathSync(copies.backup), 'the verified copies stay recorded');
+  assert.match(await api(`/api/report.md?repository=${id}`), /Verified-copy locations: backup/);
+
+  await api('/api/task', { repositoryId: id, action: 'quality', profile: 'node', approved: true }, 202);
+  assert.match((await settle()).job.error, /unchanged validation preview/, 'approved:true without the preview hash never runs code');
+
+  await api('/api/case', { repositoryId: id, type: 'notes', ...(await api('/api/state')).repositories.find(repo => repo.id === id).case, finalReport: 'kept' });
+  fs.renameSync(path.join(demo.root, 'clean-project'), path.join(w.base, 'clean-project-moved'));
+  const cleanId = (await api('/api/state')).repositories.find(repo => repo.name === 'clean-project').id;
+  await api('/api/rescan', {});
+  const after = await api('/api/state');
+  const moved = after.repositories.find(repo => repo.id === cleanId);
+  assert.ok(moved?.unavailable, 'a project that disappeared stays listed as unavailable');
+  assert.ok(moved.records.inspection, 'its saved evidence is kept');
+  const kept = after.repositories.find(repo => repo.id === id);
+  assert.equal(kept.case.finalReport, 'kept', 'case notes survive a rescan');
+  assert.deepEqual(Object.keys(kept.records), [], 'rescan still resets the gates of discovered projects, as documented');
+});
+
+test('validation previews expose npm lifecycle scripts and .npmrc, and approved npm checks skip pre/post scripts', async t => {
+  const w = workspace(t);
+  const demo = createDemoPortfolio(path.join(w.base, 'demo'));
+  const source = path.join(demo.root, 'lost-commits');
+  const marker = path.join(w.base, 'pretest-ran.txt');
+  const manifest = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
+  manifest.scripts.pretest = `node -e "require('fs').writeFileSync(${JSON.stringify(marker).replaceAll('"', '\\"')}, 'x')"`;
+  fs.writeFileSync(path.join(source, 'package.json'), JSON.stringify(manifest));
+  fs.writeFileSync(path.join(source, '.npmrc'), 'fund=false\n');
+  const { api, settle, task } = await open(w, demo.root);
+  await api('/api/scan', {}, 202);
+  await settle();
+  const id = (await api('/api/state')).repositories.find(repo => repo.name === 'lost-commits').id;
+  const copies = { backup: path.join(w.base, 'backup'), workingCopy: path.join(w.base, 'working') };
+  const preview = (await task(id, 'acquire-preview', copies))['acquire-preview'];
+  await task(id, 'acquire-apply', { ...copies, approved: true, planHash: preview.planHash });
+  await task(id, 'integrity');
+  const plan = (await task(id, 'quality-preview', { profile: 'node' }))['quality-preview'];
+  const command = plan.commands[0];
+  assert.ok(command.lifecycleScripts.pretest, 'the pretest script is shown in the preview');
+  assert.match(command.lifecycleNote, /ignore-scripts/);
+  assert.equal(command.projectNpmrc, 'fund=false\n');
+  assert.ok(command.args.join(' ').includes('--ignore-scripts'));
+  await api('/api/task', { repositoryId: id, action: 'quality', profile: 'node', approved: true, planHash: plan.planHash }, 202);
+  const done = await settle();
+  assert.equal(done.job.status, 'failed', 'the demo test fails without the restored file');
+  assert.equal(fs.existsSync(marker), false, 'pretest did not run');
 });
 
 test('an empty scan root starts cleanly and scans nothing without errors', async t => {

@@ -15,6 +15,7 @@ export function caseStatus(repo) {
   const records = repo.records ?? {};
   const make = (key, label, tone) => ({ key, label, tone });
   if (repo.unavailable) return make('unavailable', 'Folder no longer found', 'neutral');
+  if (repo.interrupted) return make('interrupted', 'Interrupted: review before continuing', 'danger');
   if (repo.lifecycle?.deliveredAt) return make('completed', 'Completed and handed off', 'success');
   if (repo.lifecycle?.dismissedAt) return make('dismissed', 'Dismissed', 'neutral');
   if (records.recovery) return make('validated', 'Recovery validated', 'success');
@@ -35,7 +36,7 @@ export function summaryCounts(repositories) {
     entry.count++;
     counts.set(status.key, entry);
   }
-  const order = ['blocked', 'candidates-found', 'needs-review', 'checks-failed', 'protected', 'files-restored', 'checks-passed', 'validated', 'completed', 'no-candidates', 'not-scanned', 'dismissed', 'unavailable'];
+  const order = ['interrupted', 'blocked', 'candidates-found', 'needs-review', 'checks-failed', 'protected', 'files-restored', 'checks-passed', 'validated', 'completed', 'no-candidates', 'not-scanned', 'dismissed', 'unavailable'];
   return [...counts.values()].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
 }
 

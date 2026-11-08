@@ -4,14 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import { discover, snapshot, inspect, preserve, integrity, quality, validateRecovery, scores, executeTask } from '../src/dashboard/engine.mjs';
+import { discover, snapshot, inspect, preserve, integrity, quality, qualityPreview, validateRecovery, scores, executeTask } from '../src/dashboard/engine.mjs';
 import { startDashboard } from '../src/dashboard/server.mjs';
 import { openStore } from '../src/dashboard/store.mjs';
 import { initialize, updateCase, estimatePairs, lifecycleView, observe } from '../src/dashboard/assessment.mjs';
 import { fix } from '../src/dashboard/fixes.mjs';
 
 function fixture(t, node = false) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'moorkyz-medikit-test-'));
+  const folder = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'moorkyz-medikit-test-'));
   const resources = [];
   t.after(async () => {
     for (const close of resources) await close();
@@ -112,7 +112,7 @@ test('quality requires actual tests and explicit approval; scripts run only on t
   await assert.rejects(quality(f.source, preserved, 'node', false), /approval/);
   await assert.rejects(quality(f.source, preserved, 'documentation', false), /cannot bypass/);
   const before = snapshot(f.source).fingerprint;
-  const checked = await quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true, { planHash: qualityPreview(f.source, preserved, { profile: 'node' }).planHash });
   assert.equal(checked.passed, true, JSON.stringify(checked.results));
   assert.equal(checked.results.length, 2);
   assert.equal(snapshot(f.source).fingerprint, before);
@@ -124,7 +124,7 @@ test('failed checks produce measured lower quality and block recovery', async t 
   const f = fixture(t, true);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
   fs.writeFileSync(path.join(f.working, 'package.json'), JSON.stringify({ scripts: { test: 'node -e "process.exit(7)"' } }));
-  const checked = await quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true, { planHash: qualityPreview(f.source, preserved, { profile: 'node' }).planHash });
   assert.equal(checked.passed, false);
   assert.equal(checked.results[0].exitCode, 7);
   assert.equal(checked.score, 21); // static 70 * .3, failed execution yields zero validation points.
@@ -139,7 +139,7 @@ test('quality executes the declared type-check alias and records its failure', a
   } });
   for (const folder of [f.source, f.backup, f.working]) fs.writeFileSync(path.join(folder, 'package.json'), manifest);
   const preserved = preserve(f.source, f.backup, f.working, [f.root]);
-  const checked = await quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true, { planHash: qualityPreview(f.source, preserved, { profile: 'node' }).planHash });
   assert.equal(checked.passed, false);
   assert.deepEqual(checked.results.map(result => [result.check, result.exitCode]), [['test', 0], ['type-check', 9]]);
 });

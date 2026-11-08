@@ -17,6 +17,7 @@ import { renderReport } from './report.mjs';
 import { actionNames, recordKey, invalidatedKeys, isPreview } from './procedures.mjs';
 import { renderDocumentation } from './documentation.mjs';
 import { assessFindings } from './findings.mjs';
+import { workingCopyWriters } from './write-guard.mjs';
 
 // Merge a fresh discovery with saved cases. Saved evidence of projects that are no longer
 // discovered is kept (marked unavailable) instead of being silently deleted.
@@ -85,6 +86,25 @@ export async function startDashboard({ root, data, port = 4317 }) {
   let state = store.load() || { schemaVersion: 1, ...discover(root), scannedAt: new Date().toISOString() };
   state.repositories = reconcile(state.repositories, discovered, state.scannedAt);
   state.skipped = discovered.skipped;
+  for (const repository of state.repositories) {
+    const pending = repository.pendingJob;
+    if (!pending) continue;
+    const at = new Date().toISOString();
+    const partial = pending.destinations?.filter(folder => typeof folder === 'string' && fs.existsSync(folder)) ?? [];
+    const error = `Interrupted: the dashboard stopped before "${pending.action}" finished.${partial.length
+      ? ` Partial copy folders remain and are never reused or treated as verified: ${partial.join('; ')}.` : ''} Review, then retry with a fresh preview.`;
+    if (workingCopyWriters.includes(pending.action)) {
+      for (const key of invalidatedKeys(pending.action)) delete repository.records[key];
+    }
+    repository.procedures.push({ id: pending.id, name: pending.action, action: pending.action, at, startedAt: pending.startedAt,
+      evidenceId: pending.id, status: 'interrupted', helpingFactor: null, rationale: '', error });
+    repository.interrupted = { action: pending.action, startedAt: pending.startedAt, detectedAt: at, partial, message: error };
+    try {
+      fs.writeFileSync(path.join(attempts, `${pending.id}.json`), JSON.stringify({ schemaVersion: 1, repositoryId: repository.id,
+        action: pending.action, startedAt: pending.startedAt, finishedAt: null, status: 'interrupted', error }), { flag: 'wx', mode: 0o600 });
+    } catch { /* an attempt file already exists; keep it */ }
+    delete repository.pendingJob;
+  }
   let job = null;
   let worker = null;
   const token = crypto.randomBytes(32).toString('hex');
@@ -218,11 +238,11 @@ export async function startDashboard({ root, data, port = 4317 }) {
         if (job?.status === 'running') return send(response, 409, { error: 'Wait for the active job.' });
         const next = discover(state.root);
         const at = new Date().toISOString();
-        state = { schemaVersion: 1, ...next, repositories: next.repositories.map(repository => {
-          const previous = state.repositories.find(item => item.id === repository.id);
-          const merged = initialize(previous ? { ...previous, ...repository, recoveryTargets: [] } : repository, at);
-          return merged;
-        }), scannedAt: at };
+        // Rescan deliberately resets the gates of discovered projects, but never deletes saved cases:
+        // projects that are no longer found keep their evidence and are shown as unavailable.
+        const repositories = reconcile(state.repositories, next, at).map(repository => repository.unavailable ? repository
+          : { ...repository, records: {}, recoveryTargets: [], scan: undefined, selectedCandidate: undefined });
+        state = { schemaVersion: 1, ...next, repositories, scannedAt: at };
         save();
         return send(response, 200, { message: 'Directory rescanned; previous score gates reset.' });
       }
@@ -311,11 +331,17 @@ export async function startDashboard({ root, data, port = 4317 }) {
         if (input.action === 'preserve' && (typeof input.backup !== 'string' || typeof input.workingCopy !== 'string')) {
           return send(response, 400, { error: 'Backup and working-copy paths are required.' });
         }
-        for (const key of invalidatedKeys(input.action)) delete repository.records[key];
-        if (['inspect', 'preserve', 'acquire-apply'].includes(input.action)) repository.recoveryTargets = [];
-        save();
         job = { id: crypto.randomUUID(), repositoryId: repository.id, action: input.action, status: 'running', startedAt: new Date().toISOString() };
         const jobId = job.id;
+        // Evidence is invalidated only after success, or after a failure that already wrote to the working copy.
+        // The pending marker lets a restart after a crash report the job as interrupted.
+        repository.pendingJob = { id: jobId, action: input.action, startedAt: job.startedAt,
+          ...(input.action === 'acquire-apply' ? { destinations: [input.backup, input.workingCopy] } : {}) };
+        save();
+        function invalidate() {
+          for (const key of invalidatedKeys(input.action)) delete repository.records[key];
+          if (['inspect', 'preserve', 'acquire-apply'].includes(input.action)) repository.recoveryTargets = [];
+        }
         function archiveAttempt(payload) {
           fs.writeFileSync(path.join(attempts, `${jobId}.json`), JSON.stringify({
             schemaVersion: 1, repositoryId: repository.id, action: input.action, startedAt: job.startedAt,
@@ -326,9 +352,11 @@ export async function startDashboard({ root, data, port = 4317 }) {
           workerData: { repository, action: input.action, input, forbiddenRoots: [root, projectRoot, data] },
         });
         const taskWorker = worker;
-        function fail(message) {
+        function fail(message, wrote = workingCopyWriters.includes(input.action)) {
           if (job.id !== jobId || job.status !== 'running') return;
           job = { ...job, status: 'failed', error: message, finishedAt: new Date().toISOString() };
+          if (wrote) invalidate();
+          delete repository.pendingJob;
           repository.failures = [...(repository.failures || []), { ...job }].slice(-50);
           try {
             if (!fs.existsSync(path.join(attempts, `${jobId}.json`))) archiveAttempt({ error: message });
@@ -342,9 +370,12 @@ export async function startDashboard({ root, data, port = 4317 }) {
           console.error(`Medikit ${input.action}: ${message}`);
         }
         worker.once('message', message => {
-          if (message.error) return fail(message.error);
+          if (message.error) return fail(message.error, message.wrote === true);
           try {
             archiveAttempt({ result: message.result });
+            invalidate();
+            delete repository.pendingJob;
+            delete repository.interrupted;
             const key = recordKey(input.action);
             repository.records[key] = message.result;
             if (input.action === 'inspect') {
@@ -406,6 +437,8 @@ export async function startDashboard({ root, data, port = 4317 }) {
       if (['quality', 'scan'].includes(job?.action)) active.postMessage({ cancel: true });
       await new Promise(resolve => active.once('exit', resolve));
     }
+    // Browsers keep idle keep-alive sockets open; close them so shutdown cannot hang.
+    server.closeAllConnections?.();
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     store.close();
   } };

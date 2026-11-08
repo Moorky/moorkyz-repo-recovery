@@ -130,6 +130,7 @@ function projectCard(repo, state) {
   header.append(title, node('span', status.label, 'status-badge'));
   card.append(header);
   card.append(node('p', scan.at ? `Scanned ${time(scan.at)}${scan.gatesUpdated === false ? ' · case gates kept (copies already verified)' : ''}` : 'Not scanned yet.', 'muted'));
+  if (repo.interrupted) card.append(node('p', repo.interrupted.message, 'warning'));
   const top = (scan.findings ?? []).slice(0, 2);
   if (top.length) {
     const list = node('ul', undefined, 'finding-summary');
@@ -194,7 +195,7 @@ export function renderSimple(state) {
   const counts = summaryCounts(state.repositories);
   $('scan-summary').replaceChildren(...counts.map(entry => node('span', `${entry.label}: ${entry.count}`, `summary-chip tone-${entry.tone}`)));
   if (state.skipped.length) $('scan-summary').append(node('span', `Skipped folders (no project marker, or a link): ${state.skipped.length}`, 'summary-chip tone-neutral'));
-  const order = ['blocked', 'candidates-found', 'needs-review', 'checks-failed', 'protected', 'files-restored', 'checks-passed', 'validated', 'not-scanned', 'no-candidates', 'completed', 'dismissed', 'unavailable'];
+  const order = ['interrupted', 'blocked', 'candidates-found', 'needs-review', 'checks-failed', 'protected', 'files-restored', 'checks-passed', 'validated', 'not-scanned', 'no-candidates', 'completed', 'dismissed', 'unavailable'];
   const sorted = [...state.repositories].sort((a, b) => order.indexOf(caseStatus(a).key) - order.indexOf(caseStatus(b).key) || a.name.localeCompare(b.name));
   $('project-list').replaceChildren(...sorted.map(repo => projectCard(repo, state)));
   if (!state.repositories.length) {
@@ -388,6 +389,8 @@ function stepChecks(repo, panel, saved) {
     for (const command of plan.commands ?? []) {
       box.append(node('p', `${command.name}: ${[command.executable, ...(command.args ?? [])].join(' ')}  (in ${command.cwd})`, 'mono'));
       if (command.declared) box.append(node('p', `Declared script "${command.name}" runs: ${command.declared}`, 'mono'));
+      for (const [name, text] of Object.entries(command.lifecycleScripts ?? {})) box.append(node('p', `Also declared: "${name}": ${text} — ${command.lifecycleNote}`, 'mono'));
+      if (command.projectNpmrc !== undefined) box.append(node('p', `Project .npmrc (npm reads it; review settings such as script-shell):\n${command.projectNpmrc}`, 'mono'));
     }
     if (profile === 'node') {
       box.append(node('p', 'Not sandboxed: approved scripts run with your user permissions and can read files, use the network or start other programs. Review them first.', 'warning'));
@@ -488,6 +491,7 @@ export function renderGuided(repo) {
   }
   const panel = node('div', undefined, 'guided-panel');
   panel.append(node('h3', active.title));
+  if (repo.interrupted) panel.append(node('p', repo.interrupted.message, 'warning'));
   if (saved.message) panel.append(node('p', saved.message.text, saved.message.error ? 'warning' : 'ok'));
   if (job?.status === 'running') panel.append(node('p', `Running: ${job.action}. Please wait; the result is saved when it finishes.`, 'muted'));
   renderers[active.id](repo, panel, saved);

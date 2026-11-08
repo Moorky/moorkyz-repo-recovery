@@ -16,7 +16,7 @@ test('CLI arguments accept --open and reject malformed or unknown options', () =
 });
 
 test('without --data each scan root gets its own private data folder; the original default stays with its root', t => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-home-'));
+  const home = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-home-'));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const first = path.join(home, 'repos-a');
   const second = path.join(home, 'repos-b');

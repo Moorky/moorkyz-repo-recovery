@@ -17,6 +17,12 @@ const candidates = {
   linux: ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge'],
 };
 
+const withTimeout = (promise, ms, label) => {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Timed out: ${label}`)), ms); })])
+    .finally(() => clearTimeout(timer));
+};
+
 export function findBrowser() {
   if (process.env.RECOVERY_BROWSER) return fs.existsSync(process.env.RECOVERY_BROWSER) ? process.env.RECOVERY_BROWSER : null;
   for (const candidate of candidates[process.platform] ?? candidates.linux) {
@@ -30,15 +36,35 @@ export function findBrowser() {
   return null;
 }
 
-export async function launchBrowser({ executable = findBrowser(), width = 1280, height = 900 } = {}) {
+export async function launchBrowser(options = {}) {
+  const session = { child: null, profile: null };
+  try {
+    return await startBrowser(options, session);
+  } catch (error) {
+    // Never leave a half-started browser running: it would keep the calling process alive.
+    if (session.child) killTree(session.child);
+    if (session.profile) fs.rmSync(session.profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    throw error;
+  }
+}
+
+function killTree(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+  else child.kill('SIGKILL');
+}
+
+async function startBrowser({ executable = findBrowser(), width = 1280, height = 900 }, session) {
   if (!executable) throw new Error('No Chromium-based browser found. Set RECOVERY_BROWSER to its executable.');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-browser-'));
+  session.profile = profile;
   const child = spawn(executable, [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check',
     '--disable-extensions', '--disable-sync', '--disable-background-networking', `--window-size=${width},${height}`,
     // Hosted Linux CI images may block Chromium's user-namespace sandbox; only the local test page is loaded.
     ...(process.platform === 'linux' && process.env.CI ? ['--no-sandbox'] : []), 'about:blank',
   ], { stdio: 'ignore' });
+  session.child = child;
   const portFile = path.join(profile, 'DevToolsActivePort');
   const deadline = Date.now() + 30_000;
   while (!fs.existsSync(portFile) || !fs.readFileSync(portFile, 'utf8').includes('\n')) {
@@ -48,11 +74,14 @@ export async function launchBrowser({ executable = findBrowser(), width = 1280, 
   const port = fs.readFileSync(portFile, 'utf8').split('\n')[0].trim();
   let target;
   for (let attempt = 0; attempt < 50 && !target; attempt++) {
-    target = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(item => item.type === 'page');
+    target = (await withTimeout(fetch(`http://127.0.0.1:${port}/json/list`).then(response => response.json()), 5_000, 'DevTools target list'))
+      .find(item => item.type === 'page');
     if (!target) await new Promise(resolve => setTimeout(resolve, 100));
   }
+  if (!target) throw new Error('Browser exposed no page target.');
   const socket = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = () => reject(new Error('DevTools connection failed.')); });
+  await withTimeout(new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = () => reject(new Error('DevTools connection failed.')); }),
+    15_000, 'DevTools connection');
   let id = 0;
   const pending = new Map();
   const errors = [];
@@ -65,11 +94,11 @@ export async function launchBrowser({ executable = findBrowser(), width = 1280, 
       else resolve(message.result);
     } else if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
   };
-  const send = (method, params = {}) => new Promise((resolve, reject) => {
+  const send = (method, params = {}) => withTimeout(new Promise((resolve, reject) => {
     const messageId = ++id;
     pending.set(messageId, { resolve, reject });
     socket.send(JSON.stringify({ id: messageId, method, params }));
-  });
+  }), 30_000, `DevTools ${method}`);
   await send('Runtime.enable');
   await send('Page.enable');
 
@@ -99,14 +128,32 @@ export async function launchBrowser({ executable = findBrowser(), width = 1280, 
       const code = key === 'Escape' ? 'Escape' : key;
       for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key, code, windowsVirtualKeyCode: key === 'Escape' ? 27 : 0 });
     },
+    // Real pointer input: scroll the element into view, then press and release the mouse at its centre.
+    async click(expression) {
+      const box = await evaluate(`(() => { const el = ${expression}; if (!el) return null; el.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, disabled: Boolean(el.disabled) }; })()`);
+      if (!box) throw new Error(`Nothing to click: ${expression}`);
+      if (box.disabled) throw new Error(`Element is disabled: ${expression}`);
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.y });
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+    },
+    // Real keyboard text input into a focused field, replacing its current value.
+    async type(expression, text) {
+      await this.click(expression);
+      await evaluate(`(${expression}).select()`);
+      await send('Input.insertText', { text });
+    },
     async screenshot(file, clip) {
       const { data } = await send('Page.captureScreenshot', { format: 'png', ...(clip ? { clip: { ...clip, scale: 1 } } : {}), captureBeyondViewport: Boolean(clip) });
       fs.writeFileSync(file, Buffer.from(data, 'base64'));
     },
     async close() {
       try { socket.close(); } catch { /* already closed */ }
-      child.kill();
-      await new Promise(resolve => (child.exitCode !== null ? resolve() : child.once('exit', resolve)));
+      // Chromium starts helper processes; end the whole tree so nothing keeps the test process alive.
+      killTree(child);
+      await withTimeout(new Promise(resolve => (child.exitCode !== null || child.signalCode !== null ? resolve() : child.once('exit', resolve))), 10_000, 'browser exit')
+        .catch(() => {});
       for (let attempt = 0; attempt < 20; attempt++) {
         try { fs.rmSync(profile, { recursive: true, force: true }); break; }
         catch { await new Promise(resolve => setTimeout(resolve, 200)); }

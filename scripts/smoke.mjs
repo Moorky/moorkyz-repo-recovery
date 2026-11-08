@@ -25,7 +25,7 @@ async function freePort() {
   return port;
 }
 
-const base = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-smoke-'));
+const base = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-smoke-'));
 let child;
 try {
   const demo = createDemoPortfolio(path.join(base, 'demo'));

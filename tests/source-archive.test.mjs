@@ -8,7 +8,7 @@ import { catalog } from '../src/dashboard/catalog.mjs';
 import { projectRoot } from '../src/recovery.mjs';
 
 test('ZIP snapshot includes shareable project files and excludes private/runtime input', t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-archive-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-archive-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const name of ['docs', path.join('docs', 'sources'), path.join('website', 'fonts'), 'src', '.git', '.audits', 'node_modules']) fs.mkdirSync(path.join(root, name), { recursive: true });
   fs.writeFileSync(path.join(root, 'README.md'), '# Public guide');
@@ -44,6 +44,20 @@ test('ZIP snapshot includes shareable project files and excludes private/runtime
   assert.ok(!archive.includes(Buffer.from('private')));
   assert.ok(!archive.includes(Buffer.from('PROJECT_RECOVERY_ASSESSMENT.md')));
   assert.ok(!archive.includes(Buffer.from('PORTFOLIO_REPAIR_RESULTS.md')));
+});
+
+test('release archive mode includes only committed files plus build information', t => {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-archive-tracked-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.writeFileSync(path.join(root, 'README.md'), '# committed');
+  fs.writeFileSync(path.join(root, 'src', 'committed.mjs'), 'export {};');
+  fs.writeFileSync(path.join(root, 'src', 'uncommitted.mjs'), 'export const local = true;');
+  const archive = sourceArchive(root, { tracked: new Set(['README.md', 'src/committed.mjs']), extra: [{ name: 'BUILD-INFO.txt', bytes: 'Commit: abc' }] });
+  assert.equal(archive.readUInt16LE(archive.length - 12), 3);
+  assert.ok(archive.includes(Buffer.from('src/committed.mjs')));
+  assert.ok(archive.includes(Buffer.from('Commit: abc')));
+  assert.ok(!archive.includes(Buffer.from('uncommitted')));
 });
 
 test('every documented supply has a real source file and unique ID', () => {

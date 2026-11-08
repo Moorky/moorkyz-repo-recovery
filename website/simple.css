@@ -72,7 +72,7 @@ body[data-mode="simple"] main { margin: 0 auto; max-width: 1180px; }
 .guided-panel .checkbox { display: flex; gap: 8px; align-items: flex-start; }
 .guided-panel .preview { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
 .guided-panel .primary { width: auto; margin: 0; }
-.mono { font-family: "DM Mono", ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.mono { font-family: "DM Mono", ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .file-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow: auto; }
 .file-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .file-list code { overflow-wrap: anywhere; }

@@ -13,7 +13,7 @@ import { invalidatedKeys } from '../src/dashboard/procedures.mjs';
 import { startDashboard } from '../src/dashboard/server.mjs';
 
 function fixture(t) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-workflow-'));
+  const folder = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-workflow-'));
   const root = path.join(folder, 'portfolio');
   const source = path.join(root, 'project');
   fs.mkdirSync(path.join(source, 'src'), { recursive: true });
@@ -124,7 +124,7 @@ test('full workflow recovers a missing historical implementation, tests it and v
   assert.throws(() => restoreHistory(f.repo, 'restore-apply', input), /Approve/);
   const restored = restoreHistory(f.repo, 'restore-apply', { ...input, approved: true, planHash: preview.planHash });
   assert.equal(fs.readFileSync(path.join(preserved.workingCopy, 'src', 'feature.mjs'), 'utf8'), 'export const value = 42;\n');
-  const checked = await quality(f.source, preserved, 'node', true);
+  const checked = await quality(f.source, preserved, 'node', true, { planHash: qualityPreview(f.source, preserved, { profile: 'node' }).planHash });
   assert.equal(checked.passed, true, JSON.stringify(checked.results));
   const recovered = validateRecovery(f.source, preserved, integrity(f.source, preserved), checked, [restored], 'Original feature returns 42; fixture test passed.');
   assert.equal(recovered.verifiedTargets.length, 1);

@@ -33,7 +33,7 @@ export function collectRecoveryEvidence(repository) {
   const queries = {
     tracked: ['ls-files', '-z'],
     missing: ['ls-files', '--deleted', '-z'],
-    changes: ['status', '--porcelain=v1', '-z', '--untracked-files=normal'],
+    changes: ['status', '--porcelain=v1', '-z', '--untracked-files=normal', '--ignore-submodules=all'],
     refs: ['for-each-ref', '--format=%(refname)'],
     commits: ['rev-list', '--all', '--count'],
     shallow: ['rev-parse', '--is-shallow-repository'],
@@ -131,6 +131,7 @@ export function renderReport(state) {
     }
     if ((view.candidates?.candidates?.length ?? 0) > 10) output.push(`- Further candidates: ${view.candidates.candidates.length - 10} not listed in this report.`);
     if (repository.selectedCandidate) output.push(`- Selected candidate: ${text(repository.selectedCandidate.commit)} (${text(repository.selectedCandidate.subject)}), chosen ${text(repository.selectedCandidate.at)}.`);
+    if (repository.interrupted) output.push(`- INTERRUPTED operation: ${text(repository.interrupted.message)}`);
     if (evidence) {
       output.push(
         `- Reachable commits across refs: ${text(evidence.commits)}; shallow history: ${text(evidence.shallow)}.`,

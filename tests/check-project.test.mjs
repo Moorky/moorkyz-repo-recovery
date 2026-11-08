@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { projectRoot } from '../src/recovery.mjs';
 
 test('public checkout checks explicitly report excluded private evidence without hiding ordinary broken links', t => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-public-check-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-public-check-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, 'scripts'));
   fs.mkdirSync(path.join(root, 'src'));

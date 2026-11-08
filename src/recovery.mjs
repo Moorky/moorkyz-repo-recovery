@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -24,18 +25,55 @@ export function containedBy(candidate, root) {
     relative !== '..' && !relative.startsWith(`..${path.sep}`));
 }
 
+// Repository-defined filter drivers (for example Git LFS or a `filter.x.clean` command) are code
+// that Git runs while reading the working tree, and git-lfs also writes hooks/config into .git.
+// Every query disables all configured drivers so inspection never executes or writes anything.
+// GIT_CONFIG_KEY_n is used instead of `-c` because subsection names may contain "=".
+// The driver list is cached briefly per repository and invalidated when a config file changes.
+const driverCache = new Map();
+function configSignature(repository) {
+  const files = [path.join(repository, '.git', 'config'), path.join(repository, '.git', 'config.worktree'),
+    path.join(os.homedir(), '.gitconfig'), path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'git', 'config')];
+  return files.map(file => { try { const stat = fs.statSync(file); return `${stat.mtimeMs}:${stat.size}`; } catch { return '-'; } }).join('|');
+}
+function filterDrivers(repository, env) {
+  const signature = configSignature(repository);
+  const cached = driverCache.get(repository);
+  if (cached && cached.signature === signature && Date.now() - cached.at < 5_000) return cached.names;
+  const listed = spawnSync('git', ['--no-pager', '-C', repository, 'config', '--null', '--name-only', '--get-regexp', '^filter\\.'], {
+    encoding: 'utf8', timeout: 15_000, windowsHide: true, env,
+  });
+  const names = new Set(['lfs']);
+  for (const key of (listed.stdout ?? '').split('\0')) {
+    const match = /^filter\.([\s\S]+)\.(clean|smudge|process|required)$/i.exec(key.trim());
+    if (match) names.add(match[1]);
+  }
+  const list = [...names];
+  driverCache.set(repository, { signature, at: Date.now(), names: list });
+  return list;
+}
+const noHooks = path.join(os.tmpdir(), `moorkyz-recovery-no-hooks-${process.pid}-unused`);
+
 export function readGit(repository, args, { binary = false, timeout = 30_000, maxBuffer = 8 * 1024 * 1024 } = {}) {
   const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat', GIT_NO_REPLACE_OBJECTS: '1' };
   for (const key of Object.keys(env)) {
     if ([
       'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE',
       'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES',
-      'GIT_NAMESPACE', 'GIT_SHALLOW_FILE', 'GIT_PREFIX',
-    ].includes(key.toUpperCase())) delete env[key];
+      'GIT_NAMESPACE', 'GIT_SHALLOW_FILE', 'GIT_PREFIX', 'GIT_EXTERNAL_DIFF',
+    ].includes(key.toUpperCase()) || /^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$/i.test(key)) delete env[key];
+  }
+  const overrides = filterDrivers(repository, env).flatMap(name => [
+    [`filter.${name}.clean`, ''], [`filter.${name}.smudge`, ''], [`filter.${name}.process`, ''], [`filter.${name}.required`, 'false'],
+  ]);
+  env.GIT_CONFIG_COUNT = String(overrides.length);
+  for (const [index, [key, value]] of overrides.entries()) {
+    env[`GIT_CONFIG_KEY_${index}`] = key;
+    env[`GIT_CONFIG_VALUE_${index}`] = value;
   }
   const result = spawnSync('git', [
     '--no-pager', '-c', 'core.fsmonitor=false', '-c', 'maintenance.auto=false',
-    '-c', 'gc.auto=0', '-C', repository, ...args,
+    '-c', 'gc.auto=0', '-c', `core.hooksPath=${noHooks}`, '-c', 'diff.external=', '-C', repository, ...args,
   ], {
     encoding: binary ? null : 'utf8',
     timeout,

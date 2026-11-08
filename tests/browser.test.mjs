@@ -12,27 +12,32 @@ const browserPath = findBrowser();
 const js = value => JSON.stringify(value);
 
 test('browser: one-click scan, candidate choice and the complete guided recovery in Simple mode', { skip: browserPath ? false : 'No Chromium-based browser installed (set RECOVERY_BROWSER).', timeout: 240_000 }, async t => {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-browser-e2e-'));
+  const base = fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()), 'recovery-browser-e2e-'));
+  let app;
+  let browser;
+  t.after(async () => {
+    await browser?.close();
+    await app?.close();
+    fs.rmSync(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  });
   const demo = createDemoPortfolio(path.join(base, 'demo'));
   const source = path.join(demo.root, 'lost-commits');
   const original = snapshot(source).fingerprint;
-  const app = await startDashboard({ root: demo.root, data: path.join(base, 'data'), port: 0 });
-  const browser = await launchBrowser({ executable: browserPath });
-  t.after(async () => {
-    await browser.close();
-    await app.close();
-    fs.rmSync(base, { recursive: true, force: true });
-  });
+  app = await startDashboard({ root: demo.root, data: path.join(base, 'data'), port: 0 });
+  browser = await launchBrowser({ executable: browserPath });
   const { evaluate, waitFor } = browser;
   const card = name => `[...document.querySelectorAll('article.project-card')].find(item => item.querySelector('h3').textContent === ${js(name)})`;
+  // All interaction uses real browser mouse and keyboard input, not element.click() or synthetic events.
+  const buttonIn = (scope, text) => `[...(${scope}).querySelectorAll('button')].find(item => item.textContent.trim().startsWith(${js(text)}) && !item.disabled)`;
   const click = async (scope, text) => {
-    const clicked = await evaluate(`(() => { const target = [...(${scope}).querySelectorAll('button')].find(item => item.textContent.trim().startsWith(${js(text)}) && !item.disabled); if (!target) return false; target.click(); return true; })()`);
-    assert.ok(clicked, `button "${text}" is available in: ${await evaluate(`[...(${scope}).querySelectorAll('button')].map(item => item.textContent.trim() + (item.disabled ? ' [disabled]' : '')).join(' | ')`)}`);
+    const available = await evaluate(`Boolean(${buttonIn(scope, text)})`);
+    assert.ok(available, `button "${text}" is available in: ${await evaluate(`[...(${scope}).querySelectorAll('button')].map(item => item.textContent.trim() + (item.disabled ? ' [disabled]' : '')).join(' | ')`)}`);
+    await browser.click(buttonIn(scope, text));
   };
   const panel = "document.querySelector('#guided-recovery .guided-panel')";
   const heading = title => `${panel}?.querySelector('h3')?.textContent === ${js(title)} && !/Running:/.test(${panel}.textContent)`;
-  const fill = (id, value) => evaluate(`(() => { const input = document.getElementById(${js(id)}); input.value = ${js(value)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-  const tick = id => evaluate(`document.getElementById(${js(id)}).click()`);
+  const fill = (id, value) => browser.type(`document.getElementById(${js(id)})`, value);
+  const tick = id => browser.click(`document.getElementById(${js(id)})`);
 
   await browser.viewport(1280, 900);
   await browser.navigate(app.origin);
@@ -41,14 +46,14 @@ test('browser: one-click scan, candidate choice and the complete guided recovery
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.sidebar')).display`), 'none');
   assert.equal(await evaluate(`document.getElementById('scan-repositories').textContent`), 'Scan repositories');
 
-  await evaluate(`document.getElementById('scan-repositories').click()`);
+  await browser.click(`document.getElementById('scan-repositories')`);
   await waitFor(`/Scan finished/.test(document.getElementById('scan-status').textContent)`, { label: 'scan finished', timeout: 60_000 });
   assert.match(await evaluate(`document.getElementById('scan-status').textContent`), /6 projects scanned\. No files were changed\./);
   assert.equal(await evaluate(`${card('lost-commits')}.querySelector('.status-badge').textContent`), 'Recovery candidates found');
   assert.equal(await evaluate(`${card('corrupted-objects')}.querySelector('.status-badge').textContent`), 'Blocked: Git problems found');
   assert.doesNotMatch(await evaluate(`document.getElementById('project-list').textContent`), /\d+(\.\d+)?%/, 'no percentages in Simple mode');
 
-  await evaluate(`${card('lost-commits')}.querySelector('details').open = true`);
+  await browser.click(`${card('lost-commits')}.querySelector('details > summary')`);
   await click(card('lost-commits'), 'Choose this candidate');
   await waitFor(`/Chosen for guided recovery/.test(${card('lost-commits')}.textContent)`, { label: 'candidate chosen' });
   await click(card('lost-commits'), 'Open guided recovery');
@@ -94,11 +99,11 @@ test('browser: one-click scan, candidate choice and the complete guided recovery
   await browser.key('Escape');
   await waitFor(`!document.getElementById('case-dialog').open`, { label: 'Escape closes the dialog' });
   await waitFor(`document.activeElement?.dataset.caseOpen === ${card('lost-commits')}.querySelector('[data-case-open]').dataset.caseOpen`, { label: 'focus returns to the card', timeout: 5000 });
-  await evaluate(`document.getElementById('mode-toggle').click()`);
+  await browser.click(`document.getElementById('mode-toggle')`);
   assert.equal(await evaluate(`document.getElementById('mode-toggle').getAttribute('aria-pressed')`), 'true');
   assert.notEqual(await evaluate(`getComputedStyle(document.querySelector('.sidebar')).display`), 'none', 'Advanced mode restores the full workbench');
   assert.notEqual(await evaluate(`getComputedStyle(document.getElementById('workspace-sections')).display`), 'none');
-  await evaluate(`document.getElementById('mode-toggle').click()`);
+  await browser.click(`document.getElementById('mode-toggle')`);
 
   for (const width of [390, 320]) {
     await browser.viewport(width, 800);

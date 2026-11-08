@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { workingRepository, gitResult, withoutHooks } from './history.mjs';
 import { ensurePreserved } from './engine.mjs';
 import { planHash } from './files.mjs';
+import { beginWrite } from './write-guard.mjs';
 
 export function remoteRecovery(repository, action, input) {
   if (input.networkApproved !== true) throw new Error('Explicit permission to contact this configured remote is required.');
@@ -38,6 +39,7 @@ export function remoteRecovery(repository, action, input) {
     scope: 'Fresh advertised ref IDs only, not a complete history/content comparison. HTTPS may use configured credential helpers. No local refs changed.' };
   if (input.approved !== true || input.planHash !== hash) throw new Error('Approve the current remote preview; changed advertisements require a new preview.');
   const namespace = `refs/recovery/import/${crypto.randomUUID()}`;
+  beginWrite();
   withoutHooks(folder, [...transport, 'fetch', '--atomic', '--no-tags', '--no-write-fetch-head',
     '--no-recurse-submodules', '--no-auto-maintenance', url,
     `refs/heads/*:${namespace}/heads/*`, `refs/tags/*:${namespace}/tags/*`], { timeout: 120_000 });
