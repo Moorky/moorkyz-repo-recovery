@@ -58,6 +58,7 @@ const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/ja
   '/list-model.mjs': ['list-model.mjs', 'text/javascript'], '/style.css': ['style.css', 'text/css'],
   '/workspace.mjs': ['workspace.mjs', 'text/javascript'], '/workspace-model.mjs': ['workspace-model.mjs', 'text/javascript'],
   '/diagnostics-model.mjs': ['diagnostics-model.mjs', 'text/javascript'], '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
+  '/simple.mjs': ['simple.mjs', 'text/javascript'], '/simple-model.mjs': ['simple-model.mjs', 'text/javascript'], '/simple.css': ['simple.css', 'text/css'],
   '/fonts/DMMono-Regular.ttf': [path.join('fonts', 'DMMono-Regular.ttf'), 'font/ttf'] };
 const escape = text => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 function guidePage(title, description, source, markdown) {
@@ -164,7 +165,9 @@ export async function startDashboard({ root, data, port = 4317 }) {
               scope: value.scope, availableChecks: value.measured?.availableChecks,
               matchedFiles: value.matchedFiles, baselineFiles: value.baselineFiles,
               note: value.note, backup: value.backup, workingCopy: value.workingCopy,
-              acceptance: value.acceptance,
+              acceptance: value.acceptance, verification: value.verification,
+              results: value.results?.map(result => ({ check: result.check, exitCode: result.exitCode, error: result.error })),
+              failure: key === 'integrity' && value.passed === false ? (value.command?.stderr || value.command?.error || '').slice(0, 2000) : undefined,
               summary: key === 'inspection' ? {
                 trackedFiles: value.recoveryEvidence?.trackedFiles ?? null,
                 missingIndexPaths: value.recoveryEvidence?.missingFromIndex?.length ?? null,

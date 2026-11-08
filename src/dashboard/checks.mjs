@@ -21,7 +21,7 @@ export function checkPlan(root, options, defaults) {
       fs.realpathSync(cwd) !== cwd || !fs.statSync(cwd).isDirectory()) throw new Error('Check directory must be an unlinked working-copy directory, outside Git metadata.');
     const args = command.args ?? [];
     if (!Array.isArray(args) || args.length > 50 || args.some(arg => typeof arg !== 'string' || arg.length > 4096 || /[\0\r\n]/.test(arg))) throw new Error('Check args must be an array of at most 50 plain strings.');
-    let executable, argv;
+    let executable, argv, declared;
     if (command.runner === 'package') {
       if (!['npm', 'pnpm'].includes(command.manager) || !/^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,80}$/.test(command.script ?? '') || args.length) {
         throw new Error('Package checks require npm/pnpm, a safe script name and no shell arguments.');
@@ -30,6 +30,7 @@ export function checkPlan(root, options, defaults) {
       if (fs.statSync(manifestFile).size > 1024 * 1024) throw new Error('Package manifest exceeds 1 MiB.');
       const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
       if (typeof manifest.scripts?.[command.script] !== 'string') throw new Error(`Missing declared package script: ${command.script}`);
+      declared = manifest.scripts[command.script];
       executable = process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : command.manager;
       argv = process.platform === 'win32' ? ['/d', '/s', '/c', `${command.manager}.cmd run ${command.script}`] : ['run', command.script];
     } else {
@@ -46,7 +47,7 @@ export function checkPlan(root, options, defaults) {
       else if (command.runner === 'dotnet' && /\.(csproj|fsproj|sln|slnx)$/i.test(file)) { executable = 'dotnet'; argv = ['test', file, '--no-restore', ...args]; }
       else throw new Error('Supported runners: package, node (.js/.mjs/.cjs), python (.py), powershell (.ps1), dotnet (project/solution).');
     }
-    return { name: command.name.trim(), kind: command.kind, executable, args: argv, cwd };
+    return { name: command.name.trim(), kind: command.kind, executable, args: argv, cwd, ...(declared === undefined ? {} : { declared }) };
   });
   return { commands: resolved, timeoutSeconds,
     warning: 'Approved repository code is NOT sandboxed. Review scripts/arguments; they may access absolute paths/network. No dependencies are installed by the workbench.' };

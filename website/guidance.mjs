@@ -1,4 +1,5 @@
 import { measuredStatistics, nextStep, helpTopics } from './guidance-model.mjs';
+import { scanProgress } from './simple-model.mjs';
 const $ = id => document.getElementById(id);
 function node(tag, text, className) {
   const el = document.createElement(tag);
@@ -136,7 +137,11 @@ export function renderGuidance(state, visible) {
   }
   const job = state.job;
   $('active-operation').hidden = !job;
-  if (job) {
+  if (job?.action === 'scan') {
+    const progress = scanProgress(job);
+    $('active-operation-title').textContent = `Repository scan — ${job.status}`;
+    $('active-operation-detail').textContent = progress.text;
+  } else if (job) {
     const name = state.repositories.find(repo => repo.id === job.repositoryId)?.name || 'Unknown case';
     const duration = Date.parse(job.finishedAt || new Date().toISOString()) - Date.parse(job.startedAt);
     $('active-operation-title').textContent = `${name}: ${job.action} — ${job.status}`;
