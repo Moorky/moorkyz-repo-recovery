@@ -1,6 +1,8 @@
 {
   "name": "moorkyz-repo-recovery",
-  "version": "0.3.1",
+  "version": "0.4.0",
+  "description": "Local-first Git recovery workbench: scan repositories read-only, find surviving history, and recover on verified independent copies.",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +11,9 @@
   "scripts": {
     "start": "node src/dashboard/server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "lint": "node scripts/check-project.mjs"
+    "lint": "node scripts/check-project.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "demo": "node scripts/demo.mjs",
+    "package": "node scripts/package.mjs"
   }
 }

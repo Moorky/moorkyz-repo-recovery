@@ -35,7 +35,9 @@ export async function launchBrowser({ executable = findBrowser(), width = 1280, 
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-browser-'));
   const child = spawn(executable, [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check',
-    '--disable-extensions', '--disable-sync', '--disable-background-networking', `--window-size=${width},${height}`, 'about:blank',
+    '--disable-extensions', '--disable-sync', '--disable-background-networking', `--window-size=${width},${height}`,
+    // Hosted Linux CI images may block Chromium's user-namespace sandbox; only the local test page is loaded.
+    ...(process.platform === 'linux' && process.env.CI ? ['--no-sandbox'] : []), 'about:blank',
   ], { stdio: 'ignore' });
   const portFile = path.join(profile, 'DevToolsActivePort');
   const deadline = Date.now() + 30_000;

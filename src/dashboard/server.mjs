@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { Worker } from 'node:worker_threads';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { containedBy, projectRoot } from '../recovery.mjs';
 import { discover, scores } from './engine.mjs';
@@ -410,19 +411,62 @@ export async function startDashboard({ root, data, port = 4317 }) {
   } };
 }
 
-async function main(args) {
-  const options = { root: path.dirname(projectRoot), data: path.join(os.homedir(), '.moorkyz-recovery', 'dashboard'), port: 4317 };
-  for (let index = 0; index < args.length; index += 2) {
-    const key = args[index]?.slice(2);
-    if (!['root', 'data', 'port'].includes(key) || !args[index + 1]) throw new Error('Use --root <directory> --data <external-directory> --port <number>.');
-    options[key] = key === 'port' ? Number(args[index + 1]) : args[index + 1];
+export function parseArguments(args, defaults = { root: path.dirname(projectRoot), port: 4317 }) {
+  const options = { ...defaults, data: null, open: false };
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === '--open') {
+      options.open = true;
+      continue;
+    }
+    const key = args[index]?.startsWith('--') ? args[index].slice(2) : null;
+    const value = args[index + 1];
+    if (!['root', 'data', 'port'].includes(key) || !value || value.startsWith('--')) {
+      throw new Error('Use --root <folder-with-repositories> [--data <external-directory>] [--port <number>] [--open].');
+    }
+    options[key] = key === 'port' ? Number(value) : value;
+    index++;
   }
   if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535) throw new Error('Port must be an integer from 1 to 65535.');
+  return options;
+}
+
+// Without --data, keep the original default folder for its existing workspace and give every
+// other scan root its own folder, so switching roots never fails with a workspace mismatch.
+export function defaultDataFolder(root, home = os.homedir()) {
+  const legacy = path.join(home, '.moorkyz-recovery', 'dashboard');
+  const resolved = fs.realpathSync(root);
+  const database = path.join(legacy, 'recovery.sqlite');
+  if (!fs.existsSync(database)) return legacy;
+  const store = (() => { try { return openStore(legacy, resolved); } catch { return null; } })();
+  if (store) {
+    store.close();
+    return legacy;
+  }
+  return path.join(home, '.moorkyz-recovery', 'workspaces', crypto.createHash('sha256').update(resolved).digest('hex').slice(0, 16));
+}
+
+function openBrowser(url) {
+  const [command, args] = process.platform === 'win32' ? ['cmd.exe', ['/d', '/c', 'start', '', url]]
+    : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+  try {
+    const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true });
+    child.on('error', () => console.log(`Could not open a browser automatically. Open ${url} yourself.`));
+    child.unref();
+  } catch { console.log(`Could not open a browser automatically. Open ${url} yourself.`); }
+}
+
+async function main(args) {
+  const options = parseArguments(args);
+  if (!fs.existsSync(options.root) || !fs.statSync(options.root).isDirectory()) {
+    throw new Error(`Scan folder not found: ${options.root}. Pass the folder that contains your repositories with --root.`);
+  }
+  options.data ??= defaultDataFolder(options.root);
   const app = await startDashboard(options);
   console.log(`Recovery dashboard: ${app.origin}`);
-  console.log(`Directory: ${options.root}`);
+  console.log(`Scanning folder: ${options.root}`);
   console.log(`Private evidence: ${options.data}`);
-  console.log('No repository repairs run automatically. Ctrl+C stops the server.');
+  console.log('Open the address above and press "Scan repositories". Nothing is repaired automatically. Ctrl+C stops the server.');
+  if (options.open) openBrowser(app.origin);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => app.close().then(() => process.exit(0)));
 }
 

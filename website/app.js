@@ -552,7 +552,11 @@ async function watchJob() {
     }
     if (state.job?.status === 'failed') announce(state.job.error, true);
     else {
-      announce(document.body.dataset.mode === 'simple' ? `Finished: ${state.job?.action ?? 'job'}. The result is saved locally; nothing was changed in your original.`
+      const labels = { inspect: 'scan', scan: 'scan', 'acquire-preview': 'copy preview', 'acquire-apply': 'copies created and verified',
+        integrity: 'integrity check', compare: 'comparison', 'restore-preview': 'restore preview', 'restore-apply': 'file restored',
+        'quality-preview': 'check preview', quality: 'checks', recover: 'validation', history: 'history discovery' };
+      const action = labels[state.job?.action] ?? state.job?.action ?? 'job';
+      announce(document.body.dataset.mode === 'simple' ? `Finished: ${action}. The result is saved locally; nothing was changed in your original.`
         : 'Evidence saved in local SQLite. Review results and rate the procedure helping factor.');
       if (state.job?.action === 'fix-preview') {
         const evidence = await api(`/api/evidence/${selectedId}`);
